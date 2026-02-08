@@ -45,11 +45,15 @@ public class ObjControlManager : MonoBehaviour
 
     public void ObjectTouchClearLine(int id)
     {
+        Debug.Log("Enter:"+id);
+        if(id == ObjClearLineTouchingTimes.Count && isPlayerControllingObj) return;
         ObjClearLineTouchingTimes[id] = 0;
     }
 
     public void ObjectUntouchClearLine(int id)
     {
+        Debug.Log("Exit:"+id);
+        //if(id == ObjClearLineTouchingTimes.Count && isPlayerControllingObj) return;
         ObjClearLineTouchingTimes[id] = -1;
     }
 
@@ -120,6 +124,7 @@ public class ObjControlManager : MonoBehaviour
         obj.transform.position = pos;
         var objObj = obj.GetComponent<Obj>();
         objObj.id = ObjClearLineTouchingTimes.Count;
+        objObj.color = Random.Range(1,ObjMaterials.Length);
         ObjClearLineTouchingTimes.Add(-1);
         return objObj;
     }
