@@ -103,6 +103,15 @@ public class Obj : MonoBehaviour
         else if(mr.material != GameManager.instance.objControlManager.ObjMaterials[color]) mr.material = GameManager.instance.objControlManager.ObjMaterials[color];
     }
     
+    public void Drop()
+    {
+        gameObject.layer = LayerMask.NameToLayer("Placed Objects");
+        prevPos = new Vector3(-100, -100, -100);
+        destination = new Vector3(0, -100, 0);
+        state = Obj.State.Moving;
+        rb.AddForce(Vector3.down, ForceMode.Impulse);
+        col.enabled = true;
+    }
     private void OnCollisionEnter(Collision collision)
     {
         //return;
