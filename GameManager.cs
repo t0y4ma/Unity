@@ -13,7 +13,7 @@ public class GameManager : MonoBehaviour
     public bool isCleared = false;
     public TextMeshProUGUI gameText;
     public TextMeshProUGUI objStateText;
-    public ObjControlManager objControlManager;
+    public ObjManager objControlManager;
 
     private void OnDestroy() => lButton.action.performed -= PressAction;
     private void OnEnable() => lButton.action.Enable();
