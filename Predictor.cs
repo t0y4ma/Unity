@@ -26,11 +26,11 @@ public class Predictor : MonoBehaviour
         Debug.Log(eulerAngles+" "+normalizedVec);
         var ang = Vector3.zero;
         RaycastHit hitInfo;
-        while (ang.sqrMagnitude <= 80)
+        while (ang.sqrMagnitude <= 8000)
         {
-            Ray ray= new Ray(Pos+ang,normalizedVec);
+            Ray ray= new Ray(Pos+ang,normalizedVec*10);
             //Debug.DrawRay(Pos+ang,normalizedVec,new Color(0,0,0),5000);
-            ang += normalizedVec;
+            ang += normalizedVec*10;
             if (Physics.Raycast(ray, out hitInfo, 1))
             {
                 //Debug.Log(hitInfo.collider.gameObject.name);

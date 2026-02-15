@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -13,11 +14,13 @@ public class GameManager : MonoBehaviour
     public bool isCleared = false;
     public TextMeshProUGUI gameText;
     public TextMeshProUGUI objStateText;
-    public ObjManager objControlManager;
-
+    public ObjManager objManager;
+    
+    //*
     private void OnDestroy() => lButton.action.performed -= PressAction;
     private void OnEnable() => lButton.action.Enable();
     private void OnDisable() => lButton.action.Disable();
+    //*/
     private void Awake()
     {
         lButton.action.performed += PressAction;
@@ -44,13 +47,17 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            
+            if (!objManager.isObjMoving)
+            {
+                StartCoroutine(objManager.NextObj());
+                objManager.isObjMoving = true;
+            }
         }
     }
 
     private void PressAction(InputAction.CallbackContext context)
     {
-        if(isCleared || objControlManager.ControllingObj == null) return;
+        if(isCleared || objManager.ControllingObj == null) return;
         var pointer = Pointer.current;
         if (pointer == null)
             return;
@@ -67,18 +74,27 @@ public class GameManager : MonoBehaviour
             
             Vector3 hitPoint = ray.GetPoint(dist);
             //Debug.Log(hitPoint);
-            if(Mathf.Abs(hitPoint.x) >= stagesize-1.0f || Mathf.Abs(hitPoint.z) >= stagesize-1.0f){
-                Debug.Log(hitPoint);
-                if(Mathf.Abs(hitPoint.x) >= stagesize-1.0f && Mathf.Abs(hitPoint.x)*0.65f <= stagesize-1.0f) hitPoint.x = (stagesize-1.1f)*Mathf.Sign(hitPoint.x);
-                if(Mathf.Abs(hitPoint.z) >= stagesize-1.0f && Mathf.Abs(hitPoint.z)*0.65f <= stagesize-1.0f) hitPoint.z = (stagesize-1.1f)*Mathf.Sign(hitPoint.z);
-                Debug.Log(hitPoint);
-                if(Mathf.Abs(hitPoint.x) >= stagesize-1.0f || Mathf.Abs(hitPoint.z) >= stagesize-1.0f) return;
+            if(Mathf.Abs(hitPoint.x) >= stagesize-10.0f || Mathf.Abs(hitPoint.z) >= stagesize-10.0f){
+                //Debug.Log(hitPoint);
+                if(Mathf.Abs(hitPoint.x) >= stagesize-10.0f && Mathf.Abs(hitPoint.x)*0.65f <= stagesize-10.0f) hitPoint.x = (stagesize-11f)*Mathf.Sign(hitPoint.x);
+                if(Mathf.Abs(hitPoint.z) >= stagesize-10.0f && Mathf.Abs(hitPoint.z)*0.65f <= stagesize-10.0f) hitPoint.z = (stagesize-11f)*Mathf.Sign(hitPoint.z);
+                //Debug.Log(hitPoint);
             }
-
-            if (objControlManager.isPlayerControllingObj)
+            if (Mathf.Abs(hitPoint.x) < stagesize - 10.0f && Mathf.Abs(hitPoint.z) < stagesize - 10.0f)
             {
-                objControlManager.ControllingObj.destination = hitPoint;
-                predictor.RemovePredict();
+                if (objManager.isObjMoving)
+                {
+                    objManager.ControllingObj.destination = hitPoint;
+                    predictor.RemovePredict();
+                }
+            }
+            else
+            {
+                //Debug.Log("Out of range");
+                if(Mathf.Abs(hitPoint.x) >= stagesize + 10.0f || Mathf.Abs(hitPoint.z) >= stagesize + 10.0f)
+                {
+                    objManager.DropObj();
+                }
             }
         }
     }

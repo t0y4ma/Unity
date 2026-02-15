@@ -3,24 +3,46 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+[System.Serializable]
+struct Animal
+{
+    public GameObject prefab;
+    public List<Material> materials;
+}
+
 public class ObjManager : MonoBehaviour
 {
-    public bool isPlayerControllingObj;
+    [Header("publicアクセスしたいだけ")]
+    public bool isObjMoving;
     public Obj ControllingObj;
     public List<int> ObjClearLineTouchingTimes;
+
+    [Header("SerializeField")]
     public Material[] ObjMaterials;
     [SerializeField]
     private List<GameObject> objPrefabs;
-    private int[] dx = { 1, 1, -1, -1 }, dz = { 1, -1, 1, -1 };
+    [SerializeField]
+    private List<Animal> objAnimals;
 
+    //先に定義しておく定数
+    private static readonly int[] dx = { 10, 10, -10, -10 },dz = { 10, -10, 10, -10 };
+
+    void Awake()
+    {
+        //初期化
+        ObjClearLineTouchingTimes = new List<int>();
+        isObjMoving = false;
+        Debug.Log(ObjClearLineTouchingTimes.Count);
+    }
     void Start()
     {
-        ObjClearLineTouchingTimes = new List<int>();
+        //重いらしいのでResources.Load()はやめ、SerializeFieldに変更
         //var objlist = Resources.LoadAll<GameObject>("Prefabs/Objects/").ToList();
         //objPrefabs = objlist.OrderBy(x => { return x.GetComponent<Obj>().level; }).ToList();
         //Debug.Log(objlist.Count());
-        isPlayerControllingObj = true;
-        StartCoroutine(NextObj());
+
+        //1つ目のObjを作る
+        //StartCoroutine(NextObj());
     }
     
     void FixedUpdate()
@@ -45,15 +67,15 @@ public class ObjManager : MonoBehaviour
 
     public void ObjectTouchClearLine(int id)
     {
-        Debug.Log("Enter:"+id);
-        if(id == ObjClearLineTouchingTimes.Count && isPlayerControllingObj) return;
+        //Debug.Log("Enter:"+id);
+        if(id == ObjClearLineTouchingTimes.Count && isObjMoving) return;
         ObjClearLineTouchingTimes[id] = 0;
     }
 
     public void ObjectUntouchClearLine(int id)
     {
-        Debug.Log("Exit:"+id);
-        //if(id == ObjClearLineTouchingTimes.Count && isPlayerControllingObj) return;
+        //Debug.Log("Exit:"+id);
+        //if(id == ObjClearLineTouchingTimes.Count && isObjMoving) return;
         ObjClearLineTouchingTimes[id] = -1;
     }
 
@@ -65,14 +87,12 @@ public class ObjManager : MonoBehaviour
         if(GameManager.instance.isCleared || ControllingObj) yield break;
         var obj = GenerateObject(Random.Range(0,3), new Vector3(Random.Range(0,GameManager.instance.stagesize*9)/10*(-1+Random.Range(0,2)),GameManager.instance.stageHeight,Random.Range(0,GameManager.instance.stagesize*9)/10*(-1+Random.Range(0,2))));
         ControllingObj = obj;
-        isPlayerControllingObj = true;
         GameManager.instance.predictor.Predict(ControllingObj.transform.position,new Vector3(90,0,0));
     }
 
     public void DropObj()
     {
         if(ControllingObj == null || GameManager.instance.isCleared) return;
-        isPlayerControllingObj = false;
         ControllingObj.Drop();
         ControllingObj = null;
         GameManager.instance.predictor.RemovePredict();
@@ -85,7 +105,7 @@ public class ObjManager : MonoBehaviour
         ObjClearLineTouchingTimes[second.id] = -1;
         Destroy(first.gameObject);
         Destroy(second.gameObject);
-        if(ObjClearLineTouchingTimes.Count == first.id+1) StartCoroutine(NextObj());
+        if(ObjClearLineTouchingTimes.Count == first.id+1) isObjMoving = false;
         if (objPrefabs == null) return;
         for (int i = 0; i < 4; i++)
         {
@@ -108,9 +128,7 @@ public class ObjManager : MonoBehaviour
         pos = CalcGeneratePos(pos,scale);
         obj.transform.position = pos;
         var objObj = obj.GetComponent<Obj>();
-        objObj.id = ObjClearLineTouchingTimes.Count;
-        objObj.color = Random.Range(1,ObjMaterials.Length);
-        ObjClearLineTouchingTimes.Add(-1);
+        objObj.level = level;
         return objObj;
     }
     

@@ -6,12 +6,12 @@ public class ClearLine : MonoBehaviour
     public void OnTriggerEnter(Collider other)
     {
         Obj obj = other.gameObject.GetComponent<Obj>();
-        if(obj != null) GameManager.instance.objControlManager.ObjectTouchClearLine(obj.id);
+        if(obj != null) GameManager.instance.objManager.ObjectTouchClearLine(obj.id);
     }
 
     public void OnTriggerExit(Collider other)
     {
         Obj obj= other.gameObject.GetComponent<Obj>();
-        if(obj != null) GameManager.instance.objControlManager.ObjectUntouchClearLine(obj.id);
+        if(obj != null) GameManager.instance.objManager.ObjectUntouchClearLine(obj.id);
     }
 }
