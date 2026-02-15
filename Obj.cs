@@ -24,14 +24,22 @@ public class Obj : MonoBehaviour
     public int id;
     public int color;
 
-    void Start()
+    void Awake()
     {
         rb = gameObject.GetComponent<Rigidbody>();
         mr = gameObject.GetComponent<MeshRenderer>();
         col = gameObject.GetComponent<Collider>();
         gameObject.layer = LayerMask.NameToLayer("Controling Objects");
-        mr.material = GameManager.instance.objControlManager.ObjMaterials[color];
-        if(GameManager.instance.objControlManager.ControllingObj == this){
+    }
+
+    void Start()
+    {
+        Debug.Log(GameManager.instance == null);
+        id = GameManager.instance.objManager.ObjClearLineTouchingTimes.Count;
+        color = Random.Range(1,GameManager.instance.objManager.ObjMaterials.Length);
+        GameManager.instance.objManager.ObjClearLineTouchingTimes.Add(-1);
+        mr.material = GameManager.instance.objManager.ObjMaterials[color];
+        if(GameManager.instance.objManager.ControllingObj == this){
             //Debug.Log("Being Controled:"+id);
             col.enabled = false;
         }
@@ -44,16 +52,17 @@ public class Obj : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (Mathf.Abs(transform.position.y) > 10) {
+        Debug.Log(rb.linearVelocity);
+        if (Mathf.Abs(transform.position.y) > GameManager.instance.stageHeight*2) {
             Debug.Log("id:"+id);
-            GameManager.instance.objControlManager.ObjectUntouchClearLine(id);
+            GameManager.instance.objManager.ObjectUntouchClearLine(id);
             Destroy(gameObject);
         }
-        if(Mathf.Abs(transform.position.x) > GameManager.instance.stagesize || Mathf.Abs(transform.position.x) > GameManager.instance.stagesize)
+        if(Mathf.Abs(transform.position.x) > GameManager.instance.stagesize || Mathf.Abs(transform.position.z) > GameManager.instance.stagesize)
         {
-            GameManager.instance.objControlManager.ObjectUntouchClearLine(id);
+            GameManager.instance.objManager.ObjectUntouchClearLine(id);
         }
-        if(GameManager.instance.objControlManager.ControllingObj == this){
+        if(GameManager.instance.objManager.ControllingObj == this){
             rb.useGravity = false;
             rb.linearVelocity = Vector3.zero;
         }
@@ -72,10 +81,10 @@ public class Obj : MonoBehaviour
                 //Debug.Log(transform.position);
                 if (dif < 0.01f) stoppingTime += Time.deltaTime;
                 else stoppingTime = 0;
-                if (stoppingTime > 0.5f)
+                if (stoppingTime > 0.25f)
                 {
                     state = State.Finished;
-                    StartCoroutine(GameManager.instance.objControlManager.NextObj());
+                    GameManager.instance.objManager.isObjMoving = false;
                 }
                 break;
             case State.Finished:
@@ -99,8 +108,8 @@ public class Obj : MonoBehaviour
             }
             else transform.position = transform.position+dif/2;
         }
-        if(GameManager.instance.objControlManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objControlManager.ObjMaterials[0]) mr.material = GameManager.instance.objControlManager.ObjMaterials[0]; }
-        else if(mr.material != GameManager.instance.objControlManager.ObjMaterials[color]) mr.material = GameManager.instance.objControlManager.ObjMaterials[color];
+        if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.ObjMaterials[0]) mr.material = GameManager.instance.objManager.ObjMaterials[0]; }
+        else if(mr.material != GameManager.instance.objManager.ObjMaterials[color]) mr.material = GameManager.instance.objManager.ObjMaterials[color];
     }
     
     public void Drop()
@@ -109,18 +118,18 @@ public class Obj : MonoBehaviour
         prevPos = new Vector3(-100, -100, -100);
         destination = new Vector3(0, -100, 0);
         state = Obj.State.Moving;
-        rb.AddForce(Vector3.down, ForceMode.Impulse);
+        rb.AddForce(Vector3.down*1000, ForceMode.Impulse);
         col.enabled = true;
     }
     private void OnCollisionEnter(Collision collision)
     {
         //return;
         Obj obj = collision.gameObject.GetComponent<Obj>();
-        if (obj == null || obj.id > id || GameManager.instance.objControlManager.ControllingObj == obj || GameManager.instance.objControlManager.ControllingObj == this) return;
+        if (obj == null || obj.id > id || GameManager.instance.objManager.ControllingObj == obj || GameManager.instance.objManager.ControllingObj == this) return;
         if (level == 0) return;
         if (obj.level == level && obj.color == color)
         {
-            GameManager.instance.objControlManager.SplitObject(level - 1, transform.position, this, obj);
+            GameManager.instance.objManager.SplitObject(level - 1, transform.position, this, obj);
         }
     }
 }
