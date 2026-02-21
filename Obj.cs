@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 using Unity.IntegerTime;
@@ -20,15 +21,24 @@ public class Obj : MonoBehaviour
     public Vector3 destination = new Vector3(0,-100,0);
     public Rigidbody rb;
     public MeshRenderer mr;
-    public Collider col;
-    public int id;
-    public int color;
+    public List<Collider> col;
+    public int id = -1;
+    public int color = -1;
+    public int type = -1;
 
     void Awake()
     {
         rb = gameObject.GetComponent<Rigidbody>();
         mr = gameObject.GetComponent<MeshRenderer>();
-        col = gameObject.GetComponent<Collider>();
+        var c = gameObject.GetComponent<Collider>();
+        if(c != null)
+        {
+            col.Add(c);
+        }
+        else
+        {
+            col = gameObject.GetComponentsInChildren<Collider>().ToList();
+        }
         gameObject.layer = LayerMask.NameToLayer("Controling Objects");
     }
 
@@ -36,12 +46,15 @@ public class Obj : MonoBehaviour
     {
         Debug.Log(GameManager.instance == null);
         id = GameManager.instance.objManager.ObjClearLineTouchingTimes.Count;
-        color = Random.Range(1,GameManager.instance.objManager.ObjMaterials.Length);
+        color = Random.Range(1,GameManager.instance.objManager.objAnimals[level].materials.Count);
         GameManager.instance.objManager.ObjClearLineTouchingTimes.Add(-1);
-        mr.material = GameManager.instance.objManager.ObjMaterials[color];
+        mr.material = GameManager.instance.objManager.objAnimals[level].materials[color];
         if(GameManager.instance.objManager.ControllingObj == this){
             //Debug.Log("Being Controled:"+id);
-            col.enabled = false;
+            foreach(Collider c in col)
+            {
+                c.enabled = false;
+            }
         }
         else
         {
@@ -52,7 +65,7 @@ public class Obj : MonoBehaviour
 
     void FixedUpdate()
     {
-        Debug.Log(rb.linearVelocity);
+        //Debug.Log(rb.linearVelocity);
         if (Mathf.Abs(transform.position.y) > GameManager.instance.stageHeight*2) {
             Debug.Log("id:"+id);
             GameManager.instance.objManager.ObjectUntouchClearLine(id);
@@ -92,8 +105,6 @@ public class Obj : MonoBehaviour
             default:
                 break;
         }
-        //Debug.Log(stoppingTime);
-        //Debug.Log(prevPos);
         prevPos = transform.position;
 
         rb.linearVelocity = new Vector3(rb.linearVelocity.x*0.96f,rb.linearVelocity.y,rb.linearVelocity.z*0.96f);
@@ -108,8 +119,21 @@ public class Obj : MonoBehaviour
             }
             else transform.position = transform.position+dif/2;
         }
-        if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.ObjMaterials[0]) mr.material = GameManager.instance.objManager.ObjMaterials[0]; }
-        else if(mr.material != GameManager.instance.objManager.ObjMaterials[color]) mr.material = GameManager.instance.objManager.ObjMaterials[color];
+        updateMaterial();
+    }
+
+    private void updateMaterial()
+    {
+        if(type == -1)
+        {
+            if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objAnimals[level].materials[0]) mr.material = GameManager.instance.objManager.objAnimals[level].materials[0]; }
+            else if(mr.material != GameManager.instance.objManager.objAnimals[level].materials[color]) mr.material = GameManager.instance.objManager.objAnimals[level].materials[color];
+        }
+        else
+        {
+            if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.animals[level][type].materials[0]) mr.material = GameManager.instance.objManager.animals[level][type].materials[0]; }
+            else if(mr.material != GameManager.instance.objManager.animals[level][type].materials[color]) mr.material = GameManager.instance.objManager.animals[level][type].materials[color];
+        }
     }
     
     public void Drop()
@@ -119,7 +143,10 @@ public class Obj : MonoBehaviour
         destination = new Vector3(0, -100, 0);
         state = Obj.State.Moving;
         rb.AddForce(Vector3.down*1000, ForceMode.Impulse);
-        col.enabled = true;
+        foreach(Collider c in col)
+        {
+            c.enabled = true;
+        }
     }
     private void OnCollisionEnter(Collision collision)
     {

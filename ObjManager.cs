@@ -4,10 +4,21 @@ using System.Linq;
 using UnityEngine;
 
 [System.Serializable]
-struct Animal
+public struct Animal
 {
     public GameObject prefab;
     public List<Material> materials;
+}
+
+[System.Serializable]
+public class AnimalList
+{
+    public List<Animal> animals;
+    public Animal this[int index]
+    {
+        set { animals[index] = value; }
+        get { return animals[index]; }
+    }
 }
 
 public class ObjManager : MonoBehaviour
@@ -18,11 +29,13 @@ public class ObjManager : MonoBehaviour
     public List<int> ObjClearLineTouchingTimes;
 
     [Header("SerializeField")]
-    public Material[] ObjMaterials;
+
+    //安全のために残しておく
     [SerializeField]
-    private List<GameObject> objPrefabs;
+    public List<Animal> objAnimals;
+    
     [SerializeField]
-    private List<Animal> objAnimals;
+    public List<AnimalList> animals;
 
     //先に定義しておく定数
     private static readonly int[] dx = { 10, 10, -10, -10 },dz = { 10, -10, 10, -10 };
@@ -69,7 +82,7 @@ public class ObjManager : MonoBehaviour
     {
         //Debug.Log("Enter:"+id);
         if(id == ObjClearLineTouchingTimes.Count && isObjMoving) return;
-        ObjClearLineTouchingTimes[id] = 0;
+        if(ObjClearLineTouchingTimes[id] < 0) ObjClearLineTouchingTimes[id] = 0;
     }
 
     public void ObjectUntouchClearLine(int id)
@@ -79,12 +92,10 @@ public class ObjManager : MonoBehaviour
         ObjClearLineTouchingTimes[id] = -1;
     }
 
-    public IEnumerator NextObj()
+    public void NextObj()
     {
-        if(GameManager.instance.isCleared || ControllingObj) yield break;
         Debug.Log("NextObj");
-        yield return new WaitForSeconds(0.5f);
-        if(GameManager.instance.isCleared || ControllingObj) yield break;
+        if(GameManager.instance.isCleared || ControllingObj) return;
         var obj = GenerateObject(Random.Range(0,3), new Vector3(Random.Range(0,GameManager.instance.stagesize*9)/10*(-1+Random.Range(0,2)),GameManager.instance.stageHeight,Random.Range(0,GameManager.instance.stagesize*9)/10*(-1+Random.Range(0,2))));
         ControllingObj = obj;
         GameManager.instance.predictor.Predict(ControllingObj.transform.position,new Vector3(90,0,0));
@@ -103,10 +114,10 @@ public class ObjManager : MonoBehaviour
         Debug.Log("Split");
         ObjClearLineTouchingTimes[first.id] = -1;
         ObjClearLineTouchingTimes[second.id] = -1;
+        Debug.Log("first:"+first.id+" second:"+second.id);
         Destroy(first.gameObject);
         Destroy(second.gameObject);
         if(ObjClearLineTouchingTimes.Count == first.id+1) isObjMoving = false;
-        if (objPrefabs == null) return;
         for (int i = 0; i < 4; i++)
         {
             Vector3 p = new Vector3(pos.x + dx[i], pos.y, pos.z + dz[i]);
@@ -116,19 +127,21 @@ public class ObjManager : MonoBehaviour
 
     public Obj GenerateObject(int level, Vector3 pos)
     {
-        var obj = Instantiate(objPrefabs[level], new Vector3(0,100,0), Quaternion.identity);
+        int type = Random.Range(0, animals[level].animals.Count);
+        //var obj = Instantiate(objAnimals[level].prefab, new Vector3(0,100,0), Quaternion.identity);
+        var obj = Instantiate(animals[level].animals[type].prefab, new Vector3(0,100,0), Quaternion.identity);
         /*
         float loc = Mathf.Pow(1.2f, level);
         Vector3 def = obj.transform.localScale;
         Vector3 scale = new Vector3(def.x*loc, def.y*loc, def.z*loc);
         obj.transform.localScale = scale;
         //*/
-
         Vector3 scale = obj.transform.localScale;
         pos = CalcGeneratePos(pos,scale);
         obj.transform.position = pos;
         var objObj = obj.GetComponent<Obj>();
         objObj.level = level;
+        objObj.type = type;
         return objObj;
     }
     
