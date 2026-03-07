@@ -20,30 +20,49 @@ public class Predictor : MonoBehaviour
         predictSigns.Clear();
     }
 
-    public void Predict(Vector3 Pos, Vector3 eulerAngles)
+    public void Predict(Vector3 startPos, Vector3 forward, float speed)
+{
+    Vector3 direction = forward;
+    Vector3 velocity = direction * speed;
+
+    float timeStep = 0.1f;
+    float maxTime = 5f;
+
+    Vector3 prevPos = startPos;
+
+    bool drawflg = false;
+
+    for (float t = 0; t < maxTime; t += timeStep)
     {
-        var normalizedVec = GetLaunchDirection(eulerAngles.x,eulerAngles.y);
-        Debug.Log(eulerAngles+" "+normalizedVec);
-        var ang = Vector3.zero;
-        RaycastHit hitInfo;
-        while (ang.sqrMagnitude <= 8000)
+        Vector3 pos = startPos 
+                    + velocity * t 
+                    + 0.5f * Physics.gravity * t * t;
+
+        Debug.DrawLine(prevPos, pos, Color.red, 5);
+
+        RaycastHit hit;
+        if (Physics.Raycast(prevPos, pos - prevPos, out hit, (pos - prevPos).magnitude))
         {
-            Ray ray= new Ray(Pos+ang,normalizedVec*10);
-            //Debug.DrawRay(Pos+ang,normalizedVec,new Color(0,0,0),5000);
-            ang += normalizedVec*10;
-            if (Physics.Raycast(ray, out hitInfo, 1))
-            {
-                //Debug.Log(hitInfo.collider.gameObject.name);
-                break;
-            }
-            predictSigns.Add(Instantiate(predictSignPrefab, Pos+ang, Quaternion.identity));
+            //Debug.Log("Hit " + hit.collider.name);
+            break;
         }
+
+        if((pos - startPos).sqrMagnitude > 10f) drawflg = true;
+
+        if(drawflg)
+        {
+            predictSigns.Add(
+                Instantiate(predictSignPrefab, pos, Quaternion.identity)
+            );
+        }
+
+        prevPos = pos;
     }
+}
 
     public static Vector3 GetLaunchDirection(float xAngle, float yAngle)
     {
         Quaternion rot = Quaternion.Euler(xAngle, yAngle, 0f);
         return rot * Vector3.forward;
     }
-    
 }   

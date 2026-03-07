@@ -7,14 +7,16 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
     [SerializeField] public Predictor predictor;
-    public float stagesize = 4.75f;
-    public float stageHeight = 6.0f;
+    public float STAGE_WIDTH = 47.5f;
+    public float STAGE_HEIGHT = 60.0f;
+    public int MAXSPLITCOUNT = 3;
     public bool isCleared = false;
     public TextMeshProUGUI gameText;
     public TextMeshProUGUI objStateText;
     public ObjManager objManager;
-
     public InputManager inputManager;
+
+    public float timeSinceLastDrop = 0f;
     
     private void Awake()
     {
@@ -41,11 +43,12 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            if (!objManager.isObjMoving)
+            if (!objManager.isObjMoving || timeSinceLastDrop > 3.0f)
             {
                 objManager.NextObj();
                 objManager.isObjMoving = true;
             }
+            timeSinceLastDrop += Time.fixedDeltaTime;
         }
     }
 
