@@ -25,6 +25,9 @@ public class Obj : MonoBehaviour
     public int id = -1;
     public int color = -1;
     public int type = -1;
+    public int splitCount = 0;
+
+    private bool isCollidedEver = false;
 
     void Awake()
     {
@@ -44,7 +47,7 @@ public class Obj : MonoBehaviour
 
     void Start()
     {
-        Debug.Log(GameManager.instance == null);
+        //Debug.Log(GameManager.instance == null);
         id = GameManager.instance.objManager.ObjClearLineTouchingTimes.Count;
         color = Random.Range(1,GameManager.instance.objManager.objAnimals[level].materials.Count);
         GameManager.instance.objManager.ObjClearLineTouchingTimes.Add(-1);
@@ -66,12 +69,12 @@ public class Obj : MonoBehaviour
     void FixedUpdate()
     {
         //Debug.Log(rb.linearVelocity);
-        if (Mathf.Abs(transform.position.y) > GameManager.instance.stageHeight*2) {
-            Debug.Log("id:"+id);
+        if (Mathf.Abs(transform.position.y) > GameManager.instance.STAGE_HEIGHT*2) {
+            //Debug.Log("id:"+id);
             GameManager.instance.objManager.ObjectUntouchClearLine(id);
             Destroy(gameObject);
         }
-        if(Mathf.Abs(transform.position.x) > GameManager.instance.stagesize || Mathf.Abs(transform.position.z) > GameManager.instance.stagesize)
+        if(Mathf.Abs(transform.position.x) > GameManager.instance.STAGE_WIDTH || Mathf.Abs(transform.position.z) > GameManager.instance.STAGE_WIDTH)
         {
             GameManager.instance.objManager.ObjectUntouchClearLine(id);
         }
@@ -97,7 +100,7 @@ public class Obj : MonoBehaviour
                 if (stoppingTime > 0.25f)
                 {
                     state = State.Finished;
-                    GameManager.instance.objManager.isObjMoving = false;
+                    if(GameManager.instance.objManager.ControllingObj == this) GameManager.instance.objManager.isObjMoving = false;
                 }
                 break;
             case State.Finished:
@@ -107,19 +110,26 @@ public class Obj : MonoBehaviour
         }
         prevPos = transform.position;
 
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x*0.96f,rb.linearVelocity.y,rb.linearVelocity.z*0.96f);
+        if(isCollidedEver) rb.linearVelocity = new Vector3(rb.linearVelocity.x*0.96f,rb.linearVelocity.y,rb.linearVelocity.z*0.96f);
         if(destination.y != -100)
         {
             var dif = destination-transform.position;
             if(dif.sqrMagnitude < 0.025){
                 transform.position = destination;
-                Debug.Log(transform.eulerAngles);
-                GameManager.instance.predictor.Predict(transform.position,transform.eulerAngles+new Vector3(90,0,0));
+                //Debug.Log(transform.eulerAngles);
+                Predict();
                 destination.y = -100;
             }
             else transform.position = transform.position+dif/2;
         }
         updateMaterial();
+        Debug.DrawLine(transform.position,transform.position+transform.up*-10,Color.blue);
+    }
+    
+    public void Predict()
+    {
+        GameManager.instance.predictor.RemovePredict();
+        GameManager.instance.predictor.Predict(transform.position,-1*transform.up,25);
     }
 
     private void updateMaterial()
@@ -141,18 +151,21 @@ public class Obj : MonoBehaviour
         gameObject.layer = LayerMask.NameToLayer("Placed Objects");
         prevPos = new Vector3(-100, -100, -100);
         destination = new Vector3(0, -100, 0);
-        state = Obj.State.Moving;
-        rb.AddForce(Vector3.down*1000, ForceMode.Impulse);
+        state = State.Moving;
+        rb.AddForce(-25*transform.up*rb.mass, ForceMode.Impulse);
         foreach(Collider c in col)
         {
             c.enabled = true;
         }
+        GameManager.instance.timeSinceLastDrop = 0f;
     }
     private void OnCollisionEnter(Collision collision)
     {
+        isCollidedEver = true;
         //return;
         Obj obj = collision.gameObject.GetComponent<Obj>();
         if (obj == null || obj.id > id || GameManager.instance.objManager.ControllingObj == obj || GameManager.instance.objManager.ControllingObj == this) return;
+        if (obj.splitCount >= GameManager.instance.MAXSPLITCOUNT || splitCount >= GameManager.instance.MAXSPLITCOUNT) return;
         if (level == 0) return;
         if (obj.level == level && obj.color == color)
         {

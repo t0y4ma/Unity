@@ -45,17 +45,7 @@ public class ObjManager : MonoBehaviour
         //初期化
         ObjClearLineTouchingTimes = new List<int>();
         isObjMoving = false;
-        Debug.Log(ObjClearLineTouchingTimes.Count);
-    }
-    void Start()
-    {
-        //重いらしいのでResources.Load()はやめ、SerializeFieldに変更
-        //var objlist = Resources.LoadAll<GameObject>("Prefabs/Objects/").ToList();
-        //objPrefabs = objlist.OrderBy(x => { return x.GetComponent<Obj>().level; }).ToList();
-        //Debug.Log(objlist.Count());
-
-        //1つ目のObjを作る
-        //StartCoroutine(NextObj());
+        //Debug.Log(ObjClearLineTouchingTimes.Count);
     }
     
     void FixedUpdate()
@@ -94,11 +84,11 @@ public class ObjManager : MonoBehaviour
 
     public void NextObj()
     {
-        Debug.Log("NextObj");
+        //Debug.Log("NextObj");
         if(GameManager.instance.isCleared || ControllingObj) return;
-        var obj = GenerateObject(Random.Range(0,3), new Vector3(Random.Range(0,GameManager.instance.stagesize*9)/10*(-1+Random.Range(0,2)),GameManager.instance.stageHeight,Random.Range(0,GameManager.instance.stagesize*9)/10*(-1+Random.Range(0,2))));
+        var obj = GenerateObject(Random.Range(0,animals.Count), GetRandomPosInStage(),0);
         ControllingObj = obj;
-        GameManager.instance.predictor.Predict(ControllingObj.transform.position,new Vector3(90,0,0));
+        ControllingObj.Predict();
     }
 
     public void DropObj()
@@ -111,21 +101,26 @@ public class ObjManager : MonoBehaviour
     
     public void SplitObject(int level, Vector3 pos, Obj first, Obj second)
     {
-        Debug.Log("Split");
+        //Debug.Log("Split");
         ObjClearLineTouchingTimes[first.id] = -1;
         ObjClearLineTouchingTimes[second.id] = -1;
-        Debug.Log("first:"+first.id+" second:"+second.id);
+        //Debug.Log("first:"+first.id+" second:"+second.id);
         Destroy(first.gameObject);
         Destroy(second.gameObject);
         if(ObjClearLineTouchingTimes.Count == first.id+1) isObjMoving = false;
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 2; i++)
         {
             Vector3 p = new Vector3(pos.x + dx[i], pos.y, pos.z + dz[i]);
-            GenerateObject(level, p).state = Obj.State.Finished;
+            GenerateObject(level, p, first.splitCount+1).state = Obj.State.Finished;
+        }
+        for (int i = 2; i < 4; i++)
+        {
+            Vector3 p = new Vector3(pos.x + dx[i], pos.y, pos.z + dz[i]);
+            GenerateObject(level, p, second.splitCount+1).state = Obj.State.Finished;
         }
     }
 
-    public Obj GenerateObject(int level, Vector3 pos)
+    public Obj GenerateObject(int level, Vector3 pos, int splitCount)
     {
         int type = Random.Range(0, animals[level].animals.Count);
         //var obj = Instantiate(objAnimals[level].prefab, new Vector3(0,100,0), Quaternion.identity);
@@ -142,20 +137,26 @@ public class ObjManager : MonoBehaviour
         var objObj = obj.GetComponent<Obj>();
         objObj.level = level;
         objObj.type = type;
+        objObj.splitCount = splitCount;
         return objObj;
+    }
+
+    private Vector3 GetRandomPosInStage()
+    {
+        return new Vector3(Random.Range(0,GameManager.instance.STAGE_WIDTH*9)/10*(-1+Random.Range(0,2)),GameManager.instance.STAGE_HEIGHT,Random.Range(0,GameManager.instance.STAGE_WIDTH*9)/10*(-1+Random.Range(0,2)));
     }
     
     private Vector3 CalcGeneratePos(Vector3 pos,Vector3 scale)
     {
-        if (Mathf.Abs(pos.x) > GameManager.instance.stagesize - scale.x / 2)
+        if (Mathf.Abs(pos.x) > GameManager.instance.STAGE_WIDTH - scale.x / 2)
         {
-            if (pos.x < 0) pos.x = -GameManager.instance.stagesize + scale.x / 2;
-            else pos.x = GameManager.instance.stagesize - scale.x / 2;
+            if (pos.x < 0) pos.x = -GameManager.instance.STAGE_WIDTH + scale.x / 2;
+            else pos.x = GameManager.instance.STAGE_WIDTH - scale.x / 2;
         }
-        if (Mathf.Abs(pos.z) > GameManager.instance.stagesize - scale.z / 2)
+        if (Mathf.Abs(pos.z) > GameManager.instance.STAGE_WIDTH - scale.z / 2)
         {
-            if (pos.z < 0) pos.z = -GameManager.instance.stagesize + scale.z / 2;
-            else pos.z = GameManager.instance.stagesize - scale.z / 2;
+            if (pos.z < 0) pos.z = -GameManager.instance.STAGE_WIDTH + scale.z / 2;
+            else pos.z = GameManager.instance.STAGE_WIDTH - scale.z / 2;
         }
         return pos;
     }
