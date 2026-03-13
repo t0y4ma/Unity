@@ -24,7 +24,7 @@ public class CameraMover : MonoBehaviour
 
     void Update()
     {
-        if (pivot == null || !GameManager.instance.inputManager.isCameraMoving) return;
+        if (pivot == null || !GameManager.instance.inputManager.props["isCameraMoving"]) return;
 
         if (Input.GetMouseButton(0))
         {
