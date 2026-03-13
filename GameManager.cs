@@ -1,22 +1,27 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
-using TMPro;
-using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public static GameManager instance;
-    [SerializeField] public Predictor predictor;
+    [Header("CONST Variables")]
     public float STAGE_WIDTH = 47.5f;
     public float STAGE_HEIGHT = 60.0f;
     public int MAXSPLITCOUNT = 3;
+    public float ROTATE_SPEED = 2.5f;
+    public float DROP_FIRSTSPEED = 25.0f;
+
+    [Header("Public Variables")]
     public bool isCleared = false;
-    public TextMeshProUGUI gameText;
-    public TextMeshProUGUI objStateText;
+    public float timeSinceLastDrop = 0f;
+    public bool hasAdaptiveColor = true;
+
+    [Header("References")]
+    public static GameManager instance;
+    public Predictor predictor;
     public ObjManager objManager;
     public InputManager inputManager;
+    public SceneLoadManager sceneManager;
 
-    public float timeSinceLastDrop = 0f;
     
     private void Awake()
     {
@@ -30,12 +35,14 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-    void Start()
+
+    private void Start()
     {
-        gameText.SetText("");
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        StartGame();
     }
     
-    void FixedUpdate()
+    private void FixedUpdate()
     {
         if (isCleared)
         {
@@ -52,10 +59,31 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        StartGame();
+    }
+
+    public void StartGame()
+    {
+        objManager = GetComponent<ObjManager>();
+        inputManager = GetComponent<InputManager>();
+        sceneManager = GetComponent<SceneLoadManager>();
+        predictor = GetComponent<Predictor>();
+
+        objManager.StartGame();
+        inputManager.StartGame();
+        sceneManager.StartGame();
+        isCleared = false;
+        Debug.Log("GameManager StartGame");
+    }
+
     public void ClearGame()
     {
         isCleared = true;
         Debug.Log("Clear!");
-        gameText.SetText("Game Clear!");
+        sceneManager.gameText.SetText("Game Clear!");
+        sceneManager.restartButton.gameObject.SetActive(true);
+        sceneManager.restartButton.enabled = true;
     }
 }

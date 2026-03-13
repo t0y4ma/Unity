@@ -1,13 +1,29 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
+using UnityEngine.Animations;
+
+[System.Serializable]
+public enum ObjType
+{
+    None = -1,
+    Capsule,
+    Cube,
+    LongPrism,
+    Sphere,
+    Dolphin,
+    [InspectorName("Don't Choose This")]
+    Max
+}
 
 [System.Serializable]
 public struct Animal
 {
     public GameObject prefab;
-    public List<Material> materials;
+    //public List<Material> materials;
+
+    public ObjType type;
+
+    public ObjType next;
 }
 
 [System.Serializable]
@@ -21,6 +37,21 @@ public class AnimalList
     }
 }
 
+
+[System.Serializable]
+public class ObjectMaterial
+{
+    [ColorUsage(true, false)]
+    public Color color;
+
+    public Material material;
+
+    public ObjectMaterial(Color color)
+    {
+        this.color = color;
+    }
+}
+
 public class ObjManager : MonoBehaviour
 {
     [Header("publicアクセスしたいだけ")]
@@ -29,26 +60,17 @@ public class ObjManager : MonoBehaviour
     public List<int> ObjClearLineTouchingTimes;
 
     [Header("SerializeField")]
+    [SerializeField] private List<Animal> objAnimals;
+    public List<Animal> animals;
 
-    //安全のために残しておく
-    [SerializeField]
-    public List<Animal> objAnimals;
-    
-    [SerializeField]
-    public List<AnimalList> animals;
+    public List<ObjectMaterial> objMaterials;
+
+    public List<Dictionary<int,int>> objColorCounter;
 
     //先に定義しておく定数
-    private static readonly int[] dx = { 10, 10, -10, -10 },dz = { 10, -10, 10, -10 };
-
-    void Awake()
-    {
-        //初期化
-        ObjClearLineTouchingTimes = new List<int>();
-        isObjMoving = false;
-        //Debug.Log(ObjClearLineTouchingTimes.Count);
-    }
+    private static readonly int[] dx = { 10, 10, -10, -10 },dz = { 10, -10, 10, -10 }; // 分割後のオブジェクトの位置調整用
     
-    void FixedUpdate()
+    private void FixedUpdate()
     {
         if (GameManager.instance.isCleared)
         {
@@ -64,6 +86,57 @@ public class ObjManager : MonoBehaviour
                     GameManager.instance.ClearGame();
                     break;
                 }
+            }
+        }
+    }
+
+    public void StartGame()
+    {
+        ObjClearLineTouchingTimes = new List<int>();
+        isObjMoving = false;
+        ControllingObj = null;
+
+        GenerateMaterials();
+        SetAnimals();
+        
+        Debug.Log("ObjManager StartGame");
+    }
+
+    private void GenerateMaterials()
+    {
+        foreach(var mat in objMaterials)
+        {
+            mat.material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+
+            mat.material.SetColor("_BaseColor", mat.color);
+            mat.material.SetFloat("_Metallic", 0f);
+            mat.material.SetFloat("_Smoothness", 0.5f);
+            mat.material.SetFloat("_Surface", 1);
+            mat.material.SetOverrideTag("RenderType", "Transparent");
+            mat.material.SetFloat("_Blend", 0);
+            mat.material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.material.SetInt("_ZWrite", 0);
+            mat.material.SetFloat("_AlphaClip", 0);
+            mat.material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.material.DisableKeyword("_ALPHATEST_ON");
+            mat.material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+
+            mat.material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        }
+    }
+
+    private void SetAnimals()
+    {
+        animals = new List<Animal>(objAnimals);
+        animals.Sort((a, b) => a.type.CompareTo(b.type));
+        objColorCounter = new List<Dictionary<int, int>>(animals.Count);
+        for(int i = 0;i < animals.Count; i++)
+        {
+            objColorCounter.Add(new Dictionary<int, int>());
+            for(int j = 2;j < objMaterials.Count; j++)
+            {
+                objColorCounter[i].Add(j, 0);
             }
         }
     }
@@ -86,7 +159,7 @@ public class ObjManager : MonoBehaviour
     {
         //Debug.Log("NextObj");
         if(GameManager.instance.isCleared || ControllingObj) return;
-        var obj = GenerateObject(Random.Range(0,animals.Count), GetRandomPosInStage(),0);
+        var obj = GenerateObject(GetRandomPosInStage(),0,Random.Range(0,(int)ObjType.Max));
         ControllingObj = obj;
         ControllingObj.Predict();
     }
@@ -96,10 +169,10 @@ public class ObjManager : MonoBehaviour
         if(ControllingObj == null || GameManager.instance.isCleared) return;
         ControllingObj.Drop();
         ControllingObj = null;
-        GameManager.instance.predictor.RemovePredict();
+        if(GameManager.instance.predictor != null) GameManager.instance.predictor.RemovePredict();
     }
     
-    public void SplitObject(int level, Vector3 pos, Obj first, Obj second)
+    public void SplitObject(Vector3 pos, Obj first, Obj second)
     {
         //Debug.Log("Split");
         ObjClearLineTouchingTimes[first.id] = -1;
@@ -111,20 +184,22 @@ public class ObjManager : MonoBehaviour
         for (int i = 0; i < 2; i++)
         {
             Vector3 p = new Vector3(pos.x + dx[i], pos.y, pos.z + dz[i]);
-            GenerateObject(level, p, first.splitCount+1).state = Obj.State.Finished;
+            GenerateObject(p, second.splitCount+1, (int)animals[(int)first.type].next).state = Obj.State.Finished;
         }
         for (int i = 2; i < 4; i++)
         {
             Vector3 p = new Vector3(pos.x + dx[i], pos.y, pos.z + dz[i]);
-            GenerateObject(level, p, second.splitCount+1).state = Obj.State.Finished;
+            GenerateObject(p, second.splitCount+1, (int)animals[(int)second.type].next).state = Obj.State.Finished;
         }
     }
 
-    public Obj GenerateObject(int level, Vector3 pos, int splitCount)
+    public Obj GenerateObject(Vector3 pos, int splitCount, int type = -1)
     {
-        int type = Random.Range(0, animals[level].animals.Count);
-        //var obj = Instantiate(objAnimals[level].prefab, new Vector3(0,100,0), Quaternion.identity);
-        var obj = Instantiate(animals[level].animals[type].prefab, new Vector3(0,100,0), Quaternion.identity);
+        if (type == -1)
+        {
+            type = Random.Range(0, animals.Count);
+        }
+        var obj = Instantiate(animals[type].prefab, new Vector3(0,100,0), Quaternion.identity);
         /*
         float loc = Mathf.Pow(1.2f, level);
         Vector3 def = obj.transform.localScale;
@@ -135,9 +210,12 @@ public class ObjManager : MonoBehaviour
         pos = CalcGeneratePos(pos,scale);
         obj.transform.position = pos;
         var objObj = obj.GetComponent<Obj>();
-        objObj.level = level;
-        objObj.type = type;
+        objObj.type = (ObjType)type;
         objObj.splitCount = splitCount;
+        if(splitCount == GameManager.instance.MAXSPLITCOUNT){
+            objColorCounter[type][objObj.color]--;
+            objObj.color = 1;
+        }
         return objObj;
     }
 

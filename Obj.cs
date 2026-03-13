@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using Unity.IntegerTime;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class Obj : MonoBehaviour
 {
@@ -15,7 +14,6 @@ public class Obj : MonoBehaviour
         
     }
     public State state = State.StandBy;
-    public int level = 0;
     private float stoppingTime = 0f;
     public Vector3 prevPos = new Vector3(-100,-100,-100);
     public Vector3 destination = new Vector3(0,-100,0);
@@ -24,7 +22,7 @@ public class Obj : MonoBehaviour
     public List<Collider> col;
     public int id = -1;
     public int color = -1;
-    public int type = -1;
+    public ObjType type = ObjType.None;
     public int splitCount = 0;
 
     private bool isCollidedEver = false;
@@ -49,9 +47,30 @@ public class Obj : MonoBehaviour
     {
         //Debug.Log(GameManager.instance == null);
         id = GameManager.instance.objManager.ObjClearLineTouchingTimes.Count;
-        color = Random.Range(1,GameManager.instance.objManager.objAnimals[level].materials.Count);
+        if (GameManager.instance.hasAdaptiveColor)
+        {
+            int minCount = int.MaxValue;
+            List<int> minColors = new List<int>();
+            for(int i = 2;i < GameManager.instance.objManager.objMaterials.Count; i++)
+            {
+                //Debug.Log(GameManager.instance.objManager.objColorCounter[(int)type][i] + " " + minCount + " " + minColor);
+                if(GameManager.instance.objManager.objColorCounter[(int)type][i] < minCount)
+                {
+                    minCount = GameManager.instance.objManager.objColorCounter[(int)type][i];
+                    minColors.Clear();
+                    minColors.Add(i);
+                }
+                else if(GameManager.instance.objManager.objColorCounter[(int)type][i] == minCount)
+                {
+                    minColors.Add(i);
+                }
+            }
+            color = minColors[Random.Range(0, minColors.Count)];
+        }
+        else color = Random.Range(2,GameManager.instance.objManager.objMaterials.Count);
+        GameManager.instance.objManager.objColorCounter[(int)type][color]++;
         GameManager.instance.objManager.ObjClearLineTouchingTimes.Add(-1);
-        mr.material = GameManager.instance.objManager.objAnimals[level].materials[color];
+        mr.material = GameManager.instance.objManager.objMaterials[color].material;
         if(GameManager.instance.objManager.ControllingObj == this){
             //Debug.Log("Being Controled:"+id);
             foreach(Collider c in col)
@@ -64,6 +83,7 @@ public class Obj : MonoBehaviour
             gameObject.layer = LayerMask.NameToLayer("Placed Objects");
         }
         //Debug.Log("id:"+id);
+        SceneManager.activeSceneChanged += OnSceneChange;
     }
 
     void FixedUpdate()
@@ -128,22 +148,34 @@ public class Obj : MonoBehaviour
     
     public void Predict()
     {
+        if(GameManager.instance.objManager.ControllingObj != this) return;
+        if(GameManager.instance.predictor == null) return;
         GameManager.instance.predictor.RemovePredict();
-        GameManager.instance.predictor.Predict(transform.position,-1*transform.up,25);
+        GameManager.instance.predictor.Predict(transform.position,Vector3.down,GameManager.instance.DROP_FIRSTSPEED);
     }
 
     private void updateMaterial()
     {
+        /*
+        if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0]) mr.material = GameManager.instance.objManager.objMaterials[0]; }
+        else if(mr.material != GameManager.instance.objManager.objMaterials[color]) mr.material = GameManager.instance.objManager.objMaterials[color];
+        //*/
+
+        if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0].material) mr.material = GameManager.instance.objManager.objMaterials[0].material; }
+        else if(mr.material != GameManager.instance.objManager.objMaterials[color].material) mr.material = GameManager.instance.objManager.objMaterials[color].material;
+
+        /*
         if(type == -1)
         {
-            if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objAnimals[level].materials[0]) mr.material = GameManager.instance.objManager.objAnimals[level].materials[0]; }
-            else if(mr.material != GameManager.instance.objManager.objAnimals[level].materials[color]) mr.material = GameManager.instance.objManager.objAnimals[level].materials[color];
+            if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0]) mr.material = GameManager.instance.objManager.objMaterials[0]; }
+            else if(mr.material != GameManager.instance.objManager.objMaterials[color]) mr.material = GameManager.instance.objManager.objMaterials[color];
         }
         else
         {
             if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.animals[level][type].materials[0]) mr.material = GameManager.instance.objManager.animals[level][type].materials[0]; }
             else if(mr.material != GameManager.instance.objManager.animals[level][type].materials[color]) mr.material = GameManager.instance.objManager.animals[level][type].materials[color];
         }
+        //*/
     }
     
     public void Drop()
@@ -152,13 +184,14 @@ public class Obj : MonoBehaviour
         prevPos = new Vector3(-100, -100, -100);
         destination = new Vector3(0, -100, 0);
         state = State.Moving;
-        rb.AddForce(-25*transform.up*rb.mass, ForceMode.Impulse);
+        rb.AddForce(Vector3.down*rb.mass*GameManager.instance.DROP_FIRSTSPEED, ForceMode.Impulse);
         foreach(Collider c in col)
         {
             c.enabled = true;
         }
         GameManager.instance.timeSinceLastDrop = 0f;
     }
+    
     private void OnCollisionEnter(Collision collision)
     {
         isCollidedEver = true;
@@ -166,10 +199,20 @@ public class Obj : MonoBehaviour
         Obj obj = collision.gameObject.GetComponent<Obj>();
         if (obj == null || obj.id > id || GameManager.instance.objManager.ControllingObj == obj || GameManager.instance.objManager.ControllingObj == this) return;
         if (obj.splitCount >= GameManager.instance.MAXSPLITCOUNT || splitCount >= GameManager.instance.MAXSPLITCOUNT) return;
-        if (level == 0) return;
-        if (obj.level == level && obj.color == color)
+        if(GameManager.instance.objManager.animals[(int)type].next == ObjType.None) return;
+        if (obj.color == color && obj.type == type)
         {
-            GameManager.instance.objManager.SplitObject(level - 1, transform.position, this, obj);
+            GameManager.instance.objManager.SplitObject(transform.position, this, obj);
         }
+    }
+
+    private void OnApplicationQuit()
+    {
+        Physics.simulationMode = SimulationMode.Script;
+    }
+
+    private void OnSceneChange(Scene previousScene, Scene newScene)
+    {
+        Physics.simulationMode = SimulationMode.Script;
     }
 }

@@ -45,14 +45,12 @@ public class InputManager : MonoBehaviour
 {
     private Dictionary<string, ButtonArea> buttonAreas;
     
-    public bool isCameraMoving;
-    public bool isRotateMode;
     [SerializeField] private InputActionProperty lButton;
     [Header("Right,Left,Front,Back")]
     [SerializeField] private Image[] rotateButtons = new Image[4];
 
-    [Header("CONST Variables")]
-    public float ROTATE_SPEED = 2.5f;
+    public Dictionary<string, bool> props;
+
 
 
     private void OnDestroy() => lButton.action.performed -= LeftClick;
@@ -73,7 +71,11 @@ public class InputManager : MonoBehaviour
             { "RotateObjFront", new ButtonArea(new Rect(), ActionRotateObjFront, 2, ActionType.Hold) },
             { "RotateObjBack", new ButtonArea(new Rect(), ActionRotateObjBack, 2, ActionType.Hold) }
         };
+        props = new Dictionary<string, bool>();
+        props["isCameraMoving"] = false;
+        props["isRotateMode"] = false;
     }
+
 
     private void FixedUpdate()
     {
@@ -109,21 +111,24 @@ public class InputManager : MonoBehaviour
                 Debug.DrawLine(new Vector3(t.x, t.y, 0), new Vector3(s.x, t.y, 0), Color.red);
             }
 
-            if(GameManager.instance.objManager.ControllingObj != null && isRotateMode)
+            if(GameManager.instance.objManager.ControllingObj != null && props["isRotateMode"])
             {
                 Vector3 wpos = GameManager.instance.objManager.ControllingObj.transform.position;
                 Vector3 spos = Camera.main.WorldToScreenPoint(wpos);
                 Vector2 pos = new Vector2(spos.x, spos.y);
                 Vector2 size = new Vector2(100, 100);
                 string[] directions = { "Right", "Left", "Front", "Back" };
-                float[] dx = { 100, -100, 0, 0 }, dy = { 0, 0, 100, -100 };
+                float[] dx = { 100, -100, 0, 0 }, dy = { -340, -340, -240, -440 };
+                //float[] dx = { 100, -100, 0, 0 }, dy = { 0, 0, 100, -100 };
                 for(int i = 0; i < 4; i++)
                 {
-                    Debug.Log("RotateObj"+directions[i]+" " + buttonAreas.ContainsKey("RotateObj"+directions[i]));
-                    Debug.Log(buttonAreas["RotateObj"+directions[i]].area);
+                    buttonAreas["RotateObj"+directions[i]].setArea(ToRect(new Vector2(dx[i], dy[i])+new Vector2(960, 540), size));
+                    //Debug.Log(ToRect(new Vector2(dx[i], dy[i])+new Vector2(960, 540), size));
+                    rotateButtons[i].rectTransform.anchoredPosition = new Vector2(dx[i], dy[i]);
+                    /*
                     buttonAreas["RotateObj"+directions[i]].setArea(ToRect(pos + new Vector2(dx[i], dy[i]), size));
-                    Debug.Log(buttonAreas["RotateObj"+directions[i]].area+" "+ToRect(pos + new Vector2(dx[i], dy[i]), size));
                     rotateButtons[i].rectTransform.anchoredPosition = pos + new Vector2(dx[i], dy[i]) - new Vector2(960, 540);
+                    //*/
                     rotateButtons[i].enabled = true;
                     rotateButtons[i].rectTransform.sizeDelta = size;
                 }
@@ -134,11 +139,24 @@ public class InputManager : MonoBehaviour
                 string[] directions = { "Right", "Left", "Front", "Back" };
                 for(int i = 0; i < 4; i++)
                 {
+                    if(rotateButtons[i] == null) continue;
                     buttonAreas["RotateObj"+directions[i]].setArea(new Rect());
                     rotateButtons[i].enabled = false;
                 }
             }
         }
+    }
+
+    public void StartGame()
+    {
+        props["isCameraMoving"] = false;
+        props["isRotateMode"] = false;
+        string[] directions = { "Right", "Left", "Front", "Back" };
+        for(int i = 0;i < 4; i++)
+        {
+            rotateButtons[i] = GameObject.Find("Rotate"+directions[i]).GetComponent<Image>();
+        }
+        Debug.Log("InputManager StartGame");
     }
 
     private Rect ToRect(Vector2 pos, Vector2 size)
@@ -152,7 +170,7 @@ public class InputManager : MonoBehaviour
         if (pointer == null) return;
 
         Vector2 mousePosition = pointer.position.ReadValue();
-        Debug.Log("Mouse Position: " + mousePosition);
+        //Debug.Log("Mouse Position: " + mousePosition);
         string index = "";
         int maxPriority = int.MinValue;
         foreach (var i in buttonAreas)
@@ -171,7 +189,7 @@ public class InputManager : MonoBehaviour
         }
         if (index == "") return;
         buttonAreas[index].DoAction();
-        Debug.Log(index);
+        //Debug.Log(index);
     }
 
 
@@ -181,7 +199,7 @@ public class InputManager : MonoBehaviour
     public void ActionDropObject()
     {
         if(GameManager.instance.isCleared || GameManager.instance.objManager.ControllingObj == null) return;
-        if(isCameraMoving || isRotateMode) return;
+        if(props["isCameraMoving"] || props["isRotateMode"]) return;
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         Plane plane = new Plane(Vector3.up,new Vector3(0, GameManager.instance.STAGE_HEIGHT, 0));
@@ -204,7 +222,7 @@ public class InputManager : MonoBehaviour
                 if (GameManager.instance.objManager.isObjMoving)
                 {
                     GameManager.instance.objManager.ControllingObj.destination = hitPoint;
-                    GameManager.instance.predictor.RemovePredict();
+                    if(GameManager.instance.predictor != null) GameManager.instance.predictor.RemovePredict();
                 }
             }
             else
@@ -220,48 +238,48 @@ public class InputManager : MonoBehaviour
 
     public void ActionSwitchCameraMove()
     {
-        isCameraMoving = !isCameraMoving;
-        isRotateMode = false;
+        props["isCameraMoving"] = !props["isCameraMoving"];
+        props["isRotateMode"] = false;
     }
 
     public void ActionSwitchRotateMode()
     {
-        isRotateMode = !isRotateMode;
-        isCameraMoving = false;
+        props["isRotateMode"] = !props["isRotateMode"];
+        props["isCameraMoving"] = false;
     }
     public void ActionRotateObjRight()
     {
         if(GameManager.instance.isCleared || GameManager.instance.objManager.ControllingObj == null) return;
-        if(isCameraMoving) return;
+        if(props["isCameraMoving"]) return;
 
-        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, Vector3.up, ROTATE_SPEED);
+        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, Vector3.up, GameManager.instance.ROTATE_SPEED);
         GameManager.instance.objManager.ControllingObj.Predict();
     }
 
     public void ActionRotateObjLeft()
     {
         if(GameManager.instance.isCleared || GameManager.instance.objManager.ControllingObj == null) return;
-        if(isCameraMoving) return;
+        if(props["isCameraMoving"]) return;
 
-        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, Vector3.up, -ROTATE_SPEED);
+        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, Vector3.up, -GameManager.instance.ROTATE_SPEED);
         GameManager.instance.objManager.ControllingObj.Predict();
     }
 
     public void ActionRotateObjFront()
     {
         if(GameManager.instance.isCleared || GameManager.instance.objManager.ControllingObj == null) return;
-        if(isCameraMoving) return;
+        if(props["isCameraMoving"]) return;
 
-        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, GameManager.instance.objManager.ControllingObj.transform.right, ROTATE_SPEED);
+        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, GameManager.instance.objManager.ControllingObj.transform.right, GameManager.instance.ROTATE_SPEED);
         GameManager.instance.objManager.ControllingObj.Predict();
     }
 
     public void ActionRotateObjBack()
     {
         if(GameManager.instance.isCleared || GameManager.instance.objManager.ControllingObj == null) return;
-        if(isCameraMoving) return;
+        if(props["isCameraMoving"]) return;
 
-        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, GameManager.instance.objManager.ControllingObj.transform.right, -ROTATE_SPEED);
+        GameManager.instance.objManager.ControllingObj.transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, GameManager.instance.objManager.ControllingObj.transform.right, -GameManager.instance.ROTATE_SPEED);
         GameManager.instance.objManager.ControllingObj.Predict();
     }
 }
