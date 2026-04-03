@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class Obj : MonoBehaviour
 {
@@ -40,7 +39,10 @@ public class Obj : MonoBehaviour
         {
             col = gameObject.GetComponentsInChildren<Collider>().ToList();
         }
-        gameObject.layer = LayerMask.NameToLayer("Controling Objects");
+        foreach(var collider in col)
+        {
+            collider.gameObject.layer = LayerMask.NameToLayer("Controling Objects");
+        }
     }
 
     void Start()
@@ -51,9 +53,10 @@ public class Obj : MonoBehaviour
         {
             int minCount = int.MaxValue;
             List<int> minColors = new List<int>();
-            for(int i = 2;i < GameManager.instance.objManager.objMaterials.Count; i++)
+            for(int i = 2;i < GameManager.instance.colorCount+2; i++)
             {
-                //Debug.Log(GameManager.instance.objManager.objColorCounter[(int)type][i] + " " + minCount + " " + minColor);
+                //Debug.Log((int)type + "," + i);
+                //Debug.Log(i + ": " + GameManager.instance.objManager.objColorCounter[(int)type][i] + " " + minCount + " " + string.Join(", ", minColors.ToArray()));
                 if(GameManager.instance.objManager.objColorCounter[(int)type][i] < minCount)
                 {
                     minCount = GameManager.instance.objManager.objColorCounter[(int)type][i];
@@ -80,10 +83,11 @@ public class Obj : MonoBehaviour
         }
         else
         {
-            gameObject.layer = LayerMask.NameToLayer("Placed Objects");
+            foreach(var collider in col)
+            {
+                collider.gameObject.layer = LayerMask.NameToLayer("Placed Objects");
+            }
         }
-        //Debug.Log("id:"+id);
-        SceneManager.activeSceneChanged += OnSceneChange;
     }
 
     void FixedUpdate()
@@ -98,12 +102,18 @@ public class Obj : MonoBehaviour
         {
             GameManager.instance.objManager.ObjectUntouchClearLine(id);
         }
+
         if(GameManager.instance.objManager.ControllingObj == this){
+            Debug.Log(gameObject.name+" "+id);
             rb.useGravity = false;
             rb.linearVelocity = Vector3.zero;
         }
         else{
             rb.useGravity = true;
+            if(rb.linearVelocity == Vector3.zero)
+            {
+                //Debug.Log(id);
+            }
         }
 
         switch (state)
@@ -156,31 +166,23 @@ public class Obj : MonoBehaviour
 
     private void updateMaterial()
     {
-        /*
-        if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0]) mr.material = GameManager.instance.objManager.objMaterials[0]; }
-        else if(mr.material != GameManager.instance.objManager.objMaterials[color]) mr.material = GameManager.instance.objManager.objMaterials[color];
-        //*/
+        if(color == -1) return;
+
+        if(color != 1 && splitCount == GameManager.instance.MAXSPLITCOUNT){
+            GameManager.instance.objManager.objColorCounter[(int)type][color]--;
+            color = 1;
+        }
 
         if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0].material) mr.material = GameManager.instance.objManager.objMaterials[0].material; }
         else if(mr.material != GameManager.instance.objManager.objMaterials[color].material) mr.material = GameManager.instance.objManager.objMaterials[color].material;
-
-        /*
-        if(type == -1)
-        {
-            if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0]) mr.material = GameManager.instance.objManager.objMaterials[0]; }
-            else if(mr.material != GameManager.instance.objManager.objMaterials[color]) mr.material = GameManager.instance.objManager.objMaterials[color];
-        }
-        else
-        {
-            if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.animals[level][type].materials[0]) mr.material = GameManager.instance.objManager.animals[level][type].materials[0]; }
-            else if(mr.material != GameManager.instance.objManager.animals[level][type].materials[color]) mr.material = GameManager.instance.objManager.animals[level][type].materials[color];
-        }
-        //*/
     }
     
     public void Drop()
     {
-        gameObject.layer = LayerMask.NameToLayer("Placed Objects");
+        foreach(var collider in col)
+        {
+            collider.gameObject.layer = LayerMask.NameToLayer("Placed Objects");
+        }
         prevPos = new Vector3(-100, -100, -100);
         destination = new Vector3(0, -100, 0);
         state = State.Moving;
@@ -196,6 +198,7 @@ public class Obj : MonoBehaviour
     {
         isCollidedEver = true;
         //return;
+        if(GameManager.instance.objManager.ObjClearLineTouchingTimes.Count >= GameManager.instance.MAX_OBJECT_COUNT) return;
         Obj obj = collision.gameObject.GetComponent<Obj>();
         if (obj == null || obj.id > id || GameManager.instance.objManager.ControllingObj == obj || GameManager.instance.objManager.ControllingObj == this) return;
         if (obj.splitCount >= GameManager.instance.MAXSPLITCOUNT || splitCount >= GameManager.instance.MAXSPLITCOUNT) return;
@@ -204,15 +207,5 @@ public class Obj : MonoBehaviour
         {
             GameManager.instance.objManager.SplitObject(transform.position, this, obj);
         }
-    }
-
-    private void OnApplicationQuit()
-    {
-        Physics.simulationMode = SimulationMode.Script;
-    }
-
-    private void OnSceneChange(Scene previousScene, Scene newScene)
-    {
-        Physics.simulationMode = SimulationMode.Script;
     }
 }

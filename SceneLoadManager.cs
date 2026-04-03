@@ -1,28 +1,30 @@
-using TMPro;
+using UnityEditor;
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class SceneLoadManager : MonoBehaviour
 {
-    public Button restartButton;
-    public TextMeshProUGUI gameText;
+    public string activeSceneName;
+
+    public void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        Debug.Log("SceneLoadManager OnSceneLoaded");
+        activeSceneName = scene.name;
+    }
 
     public void StartGame()
     {
-        restartButton = GameObject.Find("RestartButton").GetComponent<Button>();
-        gameText = GameObject.Find("GameText").GetComponent<TextMeshProUGUI>();
-        restartButton.onClick.AddListener(RestartGame);
-        gameText.SetText("");
-        restartButton.gameObject.SetActive(false);
-        restartButton.onClick.AddListener(RestartGame);
-        restartButton.enabled = false;
+        Debug.ClearDeveloperConsole();
+        GameManager.instance.uiManager.SetUIText("GameText", "");
+        GameManager.instance.uiManager.SetUIActive(UIType.Button, "RestartButton", false);
+        GameManager.instance.uiManager.SetUIActive(UIType.Button, "TitleButton", false);
+        GameManager.instance.uiManager.SetUIActive(UIType.Text, "New Record", false);
+        GameManager.instance.uiManager.SetUIActive(UIType.Other, "Result", false);
         Debug.Log("SceneManager StartGame");
     }
-
-    public void RestartGame()
+    
+    private void OnApplicationQuit()
     {
-        GameManager.instance.isCleared = false;
-        GameManager.instance.objManager.ObjClearLineTouchingTimes.Clear();
-        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+        Physics.simulationMode = SimulationMode.Script;
     }
 }

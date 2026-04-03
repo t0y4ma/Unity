@@ -4,6 +4,8 @@ using UnityEngine.UI;
 public class ButtonAreaImage : MonoBehaviour
 {
     public string propName;
+    [SerializeField] private Sprite onSprite;
+    [SerializeField] private Sprite offSprite;
 
     private bool isOn = false;
 
@@ -19,7 +21,7 @@ public class ButtonAreaImage : MonoBehaviour
         if(isOn != GameManager.instance.inputManager.props[propName])
         {
             isOn = GameManager.instance.inputManager.props[propName];
-            img.color = isOn ? new Color(1, 1, 1, 0.5f) : new Color(1, 1, 1, 1);
+            img.sprite = isOn ? onSprite : offSprite;
         }
     }
 }
