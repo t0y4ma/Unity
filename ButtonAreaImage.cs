@@ -14,6 +14,7 @@ public class ButtonAreaImage : MonoBehaviour
     private void Start()
     {
         img = GetComponent<Image>();
+        GameManager.instance.inputManager.props[propName] = false;
     }
 
     public void FixedUpdate()
