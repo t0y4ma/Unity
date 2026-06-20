@@ -38,7 +38,7 @@ public class CameraMover : MonoBehaviour
 
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0);
         offset = rot * Vector3.back * offset.magnitude;
-
+        
         transform.position = pivot.position + offset;
         transform.LookAt(pivot.position);
     }

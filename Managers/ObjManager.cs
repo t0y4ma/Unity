@@ -144,7 +144,7 @@ public class ObjManager : MonoBehaviour
                             {
                                 //Debug.Log((int)type + "," + i);
                                 //Debug.Log(i + ": " + GameManager.instance.objManager.objColorCounter[(int)type][i] + " " + minCount + " " + string.Join(", ", minColors.ToArray()));
-                                Debug.Log(typeind+" "+objColorCounter.Count);
+                                //Debug.Log(typeind+" "+objColorCounter.Count);
                                 if(objColorCounter[typeind][i] < minCount)
                                 {
                                     minCount = objColorCounter[typeind][i];
@@ -172,6 +172,7 @@ public class ObjManager : MonoBehaviour
                     if(ObjClearLineTouchingTimes[i] >= 0) ObjClearLineTouchingTimes[i]++;
                     if(ObjClearLineTouchingTimes[i] >= 180){
                         GameManager.instance.ClearGame();
+                        Debug.Log(i+" "+ objs[i].type+" "+objs[i].color);
                         break;
                     }
                 }
@@ -180,10 +181,12 @@ public class ObjManager : MonoBehaviour
                 {
                     var pair = splitQueue.Dequeue();
                     //Debug.Log("Split Queue: "+pair.Item1+" "+pair.Item2);
-                    var first = objs[pair.Item1];
-                    var second = objs[pair.Item2];
-                    if(first != null && second != null) StartCoroutine(SplitObjCoroutine((first.transform.position+second.transform.position)/2, first, second));
-                    //Debug.Log("Split Queue Count: "+splitQueue.Count);
+                    if(objs[pair.Item1] != null && objs[pair.Item2] != null){
+                        var first = objs[pair.Item1];
+                        var second = objs[pair.Item2];
+                        if(first != null && second != null) StartCoroutine(SplitObjCoroutine((first.transform.position+second.transform.position)/2, first, second));
+                        //Debug.Log("Split Queue Count: "+splitQueue.Count);
+                    }
                 }
 
                 intangibleObjs[0].SetObjData(HoldObj);
@@ -215,11 +218,11 @@ public class ObjManager : MonoBehaviour
         intangibleObjs[0] = GameObject.Find("HoldObj").GetComponent<IntangibleObj>();
         for(int i = 1;i <= 5; i++)
         {
-            Debug.Log("Find: "+"NextObj"+i);
+            //Debug.Log("Find: "+"NextObj"+i);
             intangibleObjs[i] = GameObject.Find("NextObj"+i).GetComponent<IntangibleObj>();
         }
         List<Transform> fields = GameObject.Find("Fields").GetComponentsInChildren<Transform>().ToList();
-        Debug.Log("Find: "+fields.Count);
+        //Debug.Log("Find: "+fields.Count);
         for(int i = 1;i <= 5; i++)
         {   
             //Debug.Log(fields[i].name);
@@ -269,13 +272,14 @@ public class ObjManager : MonoBehaviour
         animals = new List<Animal>(objAnimals);
         animals.Sort((a, b) => a.type.CompareTo(b.type));
         if(GameManager.instance.isOnlyAnimals) animals.RemoveAll(a => a.type < ObjType.Geometric+1);
+        else animals.RemoveAll(a => a.type <= ObjType.Animals && a.type >= ObjType.Geometric);
         objColorCounter = new List<Dictionary<int, int>>(animals.Count);
         for(int i = 0;i < Mathf.Min(animals.Count, GameManager.instance.typeCount); i++)
         {
             objColorCounter.Add(new Dictionary<int, int>());
-            for(int j = 2;j < Mathf.Min(objMaterials.Count, GameManager.instance.colorCount + 2); j++)
+            for(int j = 3;j < Mathf.Min(objMaterials.Count, GameManager.instance.colorCount + 3); j++)
             {
-                objColorCounter[i].Add(j, 0);
+                objColorCounter[i].Add(j-1, 0);
             }
         }
     }
@@ -284,6 +288,7 @@ public class ObjManager : MonoBehaviour
     {
         //Debug.Log("Enter:"+id);
         if(id == ObjClearLineTouchingTimes.Count && isObjMoving) return;
+        if(ControllingObj != null && id == ControllingObj.id) return;
         ObjClearLineTouchingColliderCounts[id]++;
         if(ObjClearLineTouchingColliderCounts[id] > 0 && ObjClearLineTouchingTimes[id] < 0) ObjClearLineTouchingTimes[id] = 0;
     }
@@ -307,15 +312,16 @@ public class ObjManager : MonoBehaviour
         int shape = (int)data.type;
         int color = data.color;
         //Debug.Log("NextObj : "+shape+" "+color);
-        Obj obj = GenerateObject(GetRandomPosInStage(),0,shape,color);
+        Obj obj = GenerateObject(CalcPositionUtils.GetRandomPosInStage(),0,shape,color);
         ControllingObj = obj;
         ControllingObj.Predict();
         GameManager.instance.movecount++;
+        GameManager.instance.inputManager.timeSinceLastHold = 0f;
     }
 
     public void DropObj()
     {
-        if(ControllingObj == null || GameManager.instance.isCleared) return;
+        if(ControllingObj == null || GameManager.instance.isCleared || ControllingObj.isTouchingOutside) return;
         ControllingObj.Drop();
         foreach(var col in ControllingObj.col)
         {
@@ -349,7 +355,7 @@ public class ObjManager : MonoBehaviour
         Destroy(first.gameObject);
         Destroy(second.gameObject);
         if(first == ControllingObj || second == ControllingObj) isObjMoving = false;
-        for(int i = 0;i < Random.Range(0, 5); i++)
+        for(int i = 0;i < Random.Range(3, 5); i++)
         {
             Instantiate(splitEffectPrefab, pos, Quaternion.identity).GetComponent<SplitEffect>().SetTarget(new Vector3(pos.x, 50, pos.z));
         }
@@ -365,8 +371,8 @@ public class ObjManager : MonoBehaviour
         if(GameManager.instance.isOnlyAnimals) typeind -= (int)ObjType.Geometric;
         int nextType = (int)animals[typeind].next;
         int newSplitCount = Mathf.Max(second.splitCount,first.splitCount) + 1;
-        Debug.Log(typeind);
-        Debug.Log("SplitObj : From"+first.type+" To"+(ObjType)nextType+" "+newSplitCount);
+        //Debug.Log(typeind);
+        //Debug.Log("SplitObj : From"+first.type+" To"+(ObjType)nextType+" "+newSplitCount);
 
         for(int i = 0;i < countAfterSplit; i++)
         {
@@ -377,9 +383,12 @@ public class ObjManager : MonoBehaviour
 
             Vector3 p = new Vector3(pos.x + x, pos.y, pos.z + z);
 
+            p = CalcPositionUtils.CalcValidPos(p, animals[typeind].prefab.transform.localScale);
+
             var obj = GenerateObject(p, first.splitCount+1, nextType);
             obj.state = Obj.State.Finished;
             obj.ChangeLayerToPlaced();
+            obj.rb.constraints = RigidbodyConstraints.None;
             if(ObjClearLineTouchingTimes.Count >= GameManager.instance.MAX_OBJECT_COUNT) return;
         }
     }
@@ -388,13 +397,17 @@ public class ObjManager : MonoBehaviour
     {
         if (type == -1) type = Random.Range(0, GameManager.instance.typeCount);
         if (color == -3) color = Random.Range(2,GameManager.instance.colorCount+2);
-        Debug.Log("GenerateObject : "+(ObjType)type+" "+color);
-        Debug.Log(type+" "+animals.Count+" "+GameManager.instance.isOnlyAnimals);
+        //Debug.Log("GenerateObject : "+(ObjType)type+" "+color);
+        //Debug.Log(type+" "+animals.Count+" "+GameManager.instance.isOnlyAnimals);
         int typeind = type;
         if(type >= (int)ObjType.Animals) typeind--;
         if(type >= (int)ObjType.Geometric) typeind--;
         if(GameManager.instance.isOnlyAnimals) typeind -= (int)ObjType.Geometric;
         if(type != (int)ObjType.Bomb && typeind >= GameManager.instance.typeCount) typeind = 0;
+        if(type == (int)ObjType.Bomb){
+            typeind = animals.Count-1;
+            color = -1;
+        }
         var obj = Instantiate(animals[typeind].prefab, new Vector3(0,100,0), Quaternion.identity, ObjParent);
         /*
         float loc = Mathf.Pow(1.2f, level);
@@ -406,7 +419,7 @@ public class ObjManager : MonoBehaviour
         //*
         pos.y = GameManager.instance.STAGE_HEIGHT;
         //*/
-        pos = CalcGeneratePos(pos,scale);
+        pos = CalcPositionUtils.CalcValidPos(pos,scale);
         obj.transform.position = pos;
         var objObj = obj.GetComponent<Obj>();
         objObj.type = (ObjType)type;
@@ -415,7 +428,10 @@ public class ObjManager : MonoBehaviour
             objObj.color = color;
             objColorCounter[typeind][color]++;
         }
-        if(type != (int)ObjType.Bomb) objs.Add(objObj);
+        if(type != (int)ObjType.Bomb){
+            objs.Add(objObj);
+            
+        }
         objObj.Init();
 
         var aabb = CollisionUtility.CreateAABB(obj.GetComponentsInChildren<Collider>().ToList());
@@ -423,32 +439,14 @@ public class ObjManager : MonoBehaviour
         if(CollisionUtility.IsCollidingWithWallOrFloor(aabb,wallAndFloorBounds.ToList()))
         {
             Destroy(obj);
-            return GenerateObject(GetRandomPosInStage(), splitCount, type, color);
+            return GenerateObject(CalcPositionUtils.GetRandomPosInStage(), splitCount, type, color);
         }
         objObj.rb.constraints = RigidbodyConstraints.FreezeRotation;
         
         return objObj;
     }
 
-    private Vector3 GetRandomPosInStage()
-    {
-        return new Vector3(Random.Range(0,GameManager.instance.STAGE_WIDTH*9)/10*(-1+Random.Range(0,2)),GameManager.instance.STAGE_HEIGHT,Random.Range(0,GameManager.instance.STAGE_WIDTH*9)/10*(-1+Random.Range(0,2)));
-    }
     
-    public Vector3 CalcGeneratePos(Vector3 pos,Vector3 scale)
-    {
-        if (Mathf.Abs(pos.x) > GameManager.instance.STAGE_WIDTH - scale.x / 2)
-        {
-            if (pos.x < 0) pos.x = -GameManager.instance.STAGE_WIDTH + scale.x / 2;
-            else pos.x = GameManager.instance.STAGE_WIDTH - scale.x / 2;
-        }
-        if (Mathf.Abs(pos.z) > GameManager.instance.STAGE_WIDTH - scale.z / 2)
-        {
-            if (pos.z < 0) pos.z = -GameManager.instance.STAGE_WIDTH + scale.z / 2;
-            else pos.z = GameManager.instance.STAGE_WIDTH - scale.z / 2;
-        }
-        return pos;
-    }
 
     public void ExplodeBomb(Vector3 pos)
     {
@@ -458,7 +456,7 @@ public class ObjManager : MonoBehaviour
             Vector3 objpos = obj.transform.position;
             Vector3 dir = objpos - pos;
             dir = dir.normalized;
-            obj.rb.AddForce(dir*obj.rb.mass*100, ForceMode.Impulse);
+            obj.rb.AddForce(dir*obj.rb.mass*50, ForceMode.Impulse);
         }
     }
 }

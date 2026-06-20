@@ -32,7 +32,7 @@ public class Bomb : Obj
         return;
     }
 
-    override protected void updateMaterial()
+    override protected void UpdateMaterial()
     {
         return;
     }

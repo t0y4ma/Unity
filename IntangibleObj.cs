@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class IntangibleObj : MonoBehaviour
 {
-    [SerializeField] private ObjType objType;
+    [SerializeField] private ObjType objType = ObjType.None;
     [SerializeField] private int color;
     [SerializeField] private MeshRenderer mr;
     [SerializeField] private MeshFilter mf;
@@ -11,6 +11,7 @@ public class IntangibleObj : MonoBehaviour
     {
         mr = GetComponent<MeshRenderer>();
         mf = GetComponent<MeshFilter>();
+        mf.mesh = null;
     }
 
     public void SetObjType(ObjType objType)
@@ -44,8 +45,10 @@ public class IntangibleObj : MonoBehaviour
                 transform.localScale = new Vector3(1.0f,1.0f,1.0f);
                 break;
             case ObjType.Mammoth:
-            case ObjType.Snake:
                 transform.localScale = new Vector3(9.0f,9.0f,9.0f);
+                break;
+            case ObjType.Snake:
+                transform.localScale = new Vector3(7.5f,7.5f,7.5f);
                 break;
             case ObjType.Dolphin:
             case ObjType.Hamster:
@@ -67,6 +70,7 @@ public class IntangibleObj : MonoBehaviour
                 transform.eulerAngles = new Vector3(0.0f,0.0f,0.0f);
                 break;
             case ObjType.Mammoth:
+            case ObjType.Snake:
                 transform.eulerAngles = new Vector3(270.0f,0.0f,0.0f);
                 break;
             case ObjType.Dolphin:
@@ -88,7 +92,7 @@ public class IntangibleObj : MonoBehaviour
         }
         if(color == -1) return;
         Debug.Log("SetColor : "+color);
-        mr.material = GameManager.instance.objManager.objMaterials[color].material;
+        mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
     }
 
     public void SetObjData(ObjData data)

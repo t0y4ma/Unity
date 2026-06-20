@@ -26,6 +26,8 @@ public class Obj : MonoBehaviour
     protected bool isCollidedEver = false;
     public bool isSplited = false;
 
+    public bool isTouchingOutside = false;
+
     void Awake()
     {
         rb = gameObject.GetComponent<Rigidbody>();
@@ -75,7 +77,7 @@ public class Obj : MonoBehaviour
         //*/
         GameManager.instance.objManager.ObjClearLineTouchingTimes.Add(-1);
         GameManager.instance.objManager.ObjClearLineTouchingColliderCounts.Add(0);
-        mr.material = GameManager.instance.objManager.objMaterials[color].material;
+        mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
         if(GameManager.instance.objManager.ControllingObj == this){
             //Debug.Log("Being Controled:"+id);
             foreach(Collider c in col)
@@ -164,7 +166,8 @@ public class Obj : MonoBehaviour
             }
             else transform.position = transform.position+dif/2;
         }
-        updateMaterial();
+        CheckTouchOutSide();
+        UpdateMaterial();
         Debug.DrawLine(transform.position,transform.position+transform.up*-10,Color.blue);
     }
     
@@ -176,9 +179,39 @@ public class Obj : MonoBehaviour
         GameManager.instance.predictor.Predict(transform.position,Vector3.down,GameManager.instance.DROP_FIRSTSPEED);
     }
 
-    protected virtual void updateMaterial()
+
+    private void CheckTouchOutSide()
     {
-        if(color == -1 || !isCollidedEver) return;
+        var aabb = CollisionUtility.CreateAABB(col);
+        Vector3 max = aabb.max;
+        Vector3 min = aabb.min;
+        if(max.x > GameManager.instance.STAGE_WIDTH*1.01 || min.x < -GameManager.instance.STAGE_WIDTH*1.01 || max.z > GameManager.instance.STAGE_WIDTH*1.01 || min.z < -GameManager.instance.STAGE_WIDTH*1.01)
+        {
+            isTouchingOutside = true;
+        }
+        else
+        {
+            isTouchingOutside = false;
+        }
+    }
+
+    protected virtual void UpdateMaterial()
+    {
+        if(splitCount < GameManager.instance.MAX_SPLIT_COUNT && GameManager.instance.objManager.ControllingObj == this)
+        {
+            if (!isCollidedEver && isTouchingOutside)
+            {
+                if(mr.material != GameManager.instance.objManager.objMaterials[1].material) mr.material = GameManager.instance.objManager.objMaterials[1].material;
+                return;
+            }
+            else
+            {
+                if(GameManager.instance.objManager.ObjClearLineTouchingTimes.Count >= GameManager.instance.MAX_OBJECT_COUNT) return;
+                if(mr.material != GameManager.instance.objManager.objMaterials[color+1].material) mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
+            }
+        }
+
+        if(color == -1) return;
 
         if(color != 1 && splitCount == GameManager.instance.MAX_SPLIT_COUNT){
             int typeind = (int)type;
@@ -189,12 +222,15 @@ public class Obj : MonoBehaviour
             color = 1;
         }
 
+        if(color != 1 && !isCollidedEver) return;
+
         if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0].material) mr.material = GameManager.instance.objManager.objMaterials[0].material; }
-        else if(mr.material != GameManager.instance.objManager.objMaterials[color].material) mr.material = GameManager.instance.objManager.objMaterials[color].material;
+        else if(mr.material != GameManager.instance.objManager.objMaterials[color+1].material) mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
     }
     
     public void Drop()
     {
+        if(isTouchingOutside) return;
         ChangeLayerToPlaced();
         prevPos = new Vector3(-100, -100, -100);
         destination = new Vector3(0, -100, 0);
@@ -211,11 +247,11 @@ public class Obj : MonoBehaviour
     protected virtual void OnCollisionEnter(Collision collision)
     {
         if(collision.gameObject.layer == LayerMask.NameToLayer("Default")) return;
-        isCollidedEver = true;
         ChangeLayerToPlaced();
         //return;
         if(GameManager.instance.objManager.ObjClearLineTouchingTimes.Count >= GameManager.instance.MAX_OBJECT_COUNT) return;
         Obj obj = collision.gameObject.GetComponent<Obj>();
+        if (obj != null && obj.isCollidedEver) isCollidedEver = true;
         if (obj == null || obj.id > id || GameManager.instance.objManager.ControllingObj == obj || GameManager.instance.objManager.ControllingObj == this) return;
         if(obj.isSplited || isSplited) return;
         if (obj.splitCount >= GameManager.instance.MAX_SPLIT_COUNT || splitCount >= GameManager.instance.MAX_SPLIT_COUNT) return;
@@ -251,6 +287,7 @@ public class Obj : MonoBehaviour
         }
         Predict();
     }
+    
     public void RotateLeft()
     {
         transform.RotateAround(GameManager.instance.objManager.ControllingObj.transform.position, Vector3.up, GameManager.instance.ROTATE_SPEED);

@@ -173,31 +173,6 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void SetUISize(UIType uiType, string uiName, Vector2 size)
-    {
-        switch (uiType)
-        {
-            case UIType.Button:
-                if (inputButtons.ContainsKey(uiName))
-                {
-                    inputButtons[uiName].rectTransform.sizeDelta = size;
-                }
-                break;
-            case UIType.Text:
-                if (inputTexts.ContainsKey(uiName))
-                {
-                    inputTexts[uiName].rectTransform.sizeDelta = size;
-                }
-                break;
-            case UIType.Other:
-                if (otherUIs.ContainsKey(uiName))
-                {
-                    otherUIs[uiName].sizeDelta = size;
-                }
-                break;
-        }
-    }
-
     public void SetUIText(string uiName, string text)
     {
         if (inputTexts.ContainsKey(uiName))

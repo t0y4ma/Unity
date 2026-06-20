@@ -295,11 +295,13 @@ public class ScoreManager : MonoBehaviour
                 {
                     success = true;
                     done = true;
+                    /*
                     foreach (var log in result.Logs)
                     {
                         Debug.Log($"{log.Level}: {log.Message}");
                     }
                     Debug.Log("CloudScript Result: " + result.FunctionResult);
+                    //*/
                 },
                 error =>
                 {
