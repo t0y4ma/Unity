@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Rendering;
 using Random = UnityEngine.Random;
 
 #region Structs and Enums
@@ -17,11 +16,11 @@ public enum ObjType
     Sphere,
     Pyramid,
     Geometric,
-    Dolphin,
     Mammoth,
     Giraffe,
-    Hamster,
+    Dolphin,
     Snake,
+    Hamster,
     Animals,
     Bomb,
     [InspectorName("Don't Choose This")]
@@ -68,7 +67,7 @@ public class ObjData
 
 #endregion
 
-public class ObjManager : MonoBehaviour
+public class ObjManager : MonoBehaviour,IStartGame
 {
     [Header("publicアクセスしたいだけ")]
     public bool isObjMoving;
@@ -312,7 +311,7 @@ public class ObjManager : MonoBehaviour
         int shape = (int)data.type;
         int color = data.color;
         //Debug.Log("NextObj : "+shape+" "+color);
-        Obj obj = GenerateObject(CalcPositionUtils.GetRandomPosInStage(),0,shape,color);
+        Obj obj = GenerateObject(new Vector3(0,GameManager.instance.STAGE_HEIGHT,0),0,shape,color);
         ControllingObj = obj;
         ControllingObj.Predict();
         GameManager.instance.movecount++;
@@ -439,7 +438,7 @@ public class ObjManager : MonoBehaviour
         if(CollisionUtility.IsCollidingWithWallOrFloor(aabb,wallAndFloorBounds.ToList()))
         {
             Destroy(obj);
-            return GenerateObject(CalcPositionUtils.GetRandomPosInStage(), splitCount, type, color);
+            return GenerateObject(new Vector3(0,GameManager.instance.STAGE_HEIGHT,0), splitCount, type, color);
         }
         objObj.rb.constraints = RigidbodyConstraints.FreezeRotation;
         

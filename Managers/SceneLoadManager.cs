@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class SceneLoadManager : MonoBehaviour
+public class SceneLoadManager : MonoBehaviour,IStartGame
 {
     public string activeSceneName;
 

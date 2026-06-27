@@ -158,7 +158,7 @@ class RankingWrapper
 }
 #endregion
 
-public class ScoreManager : MonoBehaviour
+public class ScoreManager : MonoBehaviour,IStartGame
 {
 
     #region inGameProcess
@@ -305,7 +305,6 @@ public class ScoreManager : MonoBehaviour
                 },
                 error =>
                 {
-                    // CloudScriptのthrowはここに来る
                     string err = error.GenerateErrorReport();
 
                     if (err.Contains("concurrent update"))
@@ -320,7 +319,6 @@ public class ScoreManager : MonoBehaviour
                     done = true;
                 });
 
-            // 完了待ち
             while (!done) yield return null;
 
             if (success)
@@ -335,10 +333,8 @@ public class ScoreManager : MonoBehaviour
                 yield break;
             }
 
-            // ---- バックオフ ----
             yield return new WaitForSeconds(waitTime + UnityEngine.Random.Range(0f, 0.2f));
 
-            // 少しずつ待機時間を増やす
             waitTime *= 2f;
         }
 
@@ -365,10 +361,8 @@ public class ScoreManager : MonoBehaviour
             {
                 try
                 {
-                    // CloudScriptの返り値はJSON配列
                     string json = result.FunctionResult.ToString();
 
-                    // JsonUtility対策（配列ラップ）
                     string wrapped = "{\"list\":" + json + "}";
 
                     var parsed = JsonUtility.FromJson<RankingWrapper>(wrapped);
@@ -389,15 +383,15 @@ public class ScoreManager : MonoBehaviour
                 done = true;
             });
 
-        // 完了待ち
         while (!done) yield return null;
 
-        // ---- 使用例 ----
+        /*
         for (int i = 0; i < resultList.Count; i++)
         {
             var r = resultList[i];
             Debug.Log($"{i + 1}位 {r.name} move:{r.moveCount} score:{r.score} time:{r.time}");
         }
+        //*/
     }
     public async Task<List<RankingEntry>> GetRankingAsync()
     {

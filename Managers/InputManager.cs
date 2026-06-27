@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using NUnit.Framework.Constraints;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -42,7 +41,7 @@ class ButtonArea
 }
 #endregion
 
-public class InputManager : MonoBehaviour
+public class InputManager : MonoBehaviour,IPrepareMenu,IStartGame
 {
     private Dictionary<string, ButtonArea> buttonAreas;
     
@@ -534,8 +533,6 @@ public class InputManager : MonoBehaviour
 
         Vector3 right = Vector3.Cross(Vector3.up, horizontalForward);
         GameManager.instance.objManager.ControllingObj.destination += right;
-        GameManager.instance.objManager.ControllingObj.destination = CalcPositionUtils.CalcValidPos(GameManager.instance.objManager.ControllingObj.destination, GameManager.instance.objManager.ControllingObj.transform.localScale);
-        GameManager.instance.objManager.ControllingObj.Predict();
         GameManager.instance.objManager.ControllingObj.destination.y = GameManager.instance.STAGE_HEIGHT;
     }
     public void ActionMoveObjLeft()
@@ -550,8 +547,6 @@ public class InputManager : MonoBehaviour
 
         Vector3 right = Vector3.Cross(Vector3.up, horizontalForward);
         GameManager.instance.objManager.ControllingObj.destination -= right;
-        GameManager.instance.objManager.ControllingObj.destination = CalcPositionUtils.CalcValidPos(GameManager.instance.objManager.ControllingObj.destination, GameManager.instance.objManager.ControllingObj.transform.localScale);
-        GameManager.instance.objManager.ControllingObj.Predict();
         GameManager.instance.objManager.ControllingObj.destination.y = GameManager.instance.STAGE_HEIGHT;
     }
 
@@ -566,8 +561,6 @@ public class InputManager : MonoBehaviour
         }
 
         GameManager.instance.objManager.ControllingObj.destination += horizontalForward;
-        GameManager.instance.objManager.ControllingObj.destination = CalcPositionUtils.CalcValidPos(GameManager.instance.objManager.ControllingObj.destination, GameManager.instance.objManager.ControllingObj.transform.localScale);
-        GameManager.instance.objManager.ControllingObj.Predict();
         GameManager.instance.objManager.ControllingObj.destination.y = GameManager.instance.STAGE_HEIGHT;
     }
 
@@ -582,8 +575,6 @@ public class InputManager : MonoBehaviour
         }
 
         GameManager.instance.objManager.ControllingObj.destination -= horizontalForward;
-        GameManager.instance.objManager.ControllingObj.destination = CalcPositionUtils.CalcValidPos(GameManager.instance.objManager.ControllingObj.destination, GameManager.instance.objManager.ControllingObj.transform.localScale);
-        GameManager.instance.objManager.ControllingObj.Predict();
         GameManager.instance.objManager.ControllingObj.destination.y = GameManager.instance.STAGE_HEIGHT;
     }
 

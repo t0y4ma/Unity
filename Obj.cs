@@ -49,6 +49,8 @@ public class Obj : MonoBehaviour
 
     public virtual void Init()
     {
+        destination = transform.position;
+        destination.y = -100;
         //Debug.Log(GameManager.instance == null);
         id = GameManager.instance.objManager.ObjClearLineTouchingTimes.Count;
         /*
@@ -77,7 +79,7 @@ public class Obj : MonoBehaviour
         //*/
         GameManager.instance.objManager.ObjClearLineTouchingTimes.Add(-1);
         GameManager.instance.objManager.ObjClearLineTouchingColliderCounts.Add(0);
-        mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
+        mr.sharedMaterial = GameManager.instance.objManager.objMaterials[color+1].material;
         if(GameManager.instance.objManager.ControllingObj == this){
             //Debug.Log("Being Controled:"+id);
             foreach(Collider c in col)
@@ -155,18 +157,9 @@ public class Obj : MonoBehaviour
         prevPos = transform.position;
 
         if(isCollidedEver) rb.linearVelocity = new Vector3(rb.linearVelocity.x*0.96f,rb.linearVelocity.y,rb.linearVelocity.z*0.96f);
-        if(destination.y != -100)
-        {
-            var dif = destination-transform.position;
-            if(dif.sqrMagnitude < 0.025){
-                transform.position = destination;
-                //Debug.Log(transform.eulerAngles);
-                Predict();
-                destination.y = -100;
-            }
-            else transform.position = transform.position+dif/2;
-        }
-        CheckTouchOutSide();
+        Move();
+
+        isTouchingOutside = CheckTouchOutSide();
         UpdateMaterial();
         Debug.DrawLine(transform.position,transform.position+transform.up*-10,Color.blue);
     }
@@ -180,52 +173,68 @@ public class Obj : MonoBehaviour
     }
 
 
-    private void CheckTouchOutSide()
+    public bool CheckTouchOutSide()
     {
         var aabb = CollisionUtility.CreateAABB(col);
         Vector3 max = aabb.max;
         Vector3 min = aabb.min;
+        Debug.DrawLine(max, new Vector3(min.x, max.y, max.z), Color.red);
+        Debug.DrawLine(max, new Vector3(max.x, min.y, max.z), Color.red);
+        Debug.DrawLine(max, new Vector3(max.x, max.y, min.z), Color.red);
+        Debug.DrawLine(min, new Vector3(max.x, min.y, min.z), Color.red);
+        Debug.DrawLine(min, new Vector3(min.x, max.y, min.z), Color.red);
+        Debug.DrawLine(min, new Vector3(min.x, min.y, max.z), Color.red);
+        Debug.DrawLine(new Vector3(min.x, max.y, min.z), new Vector3(max.x, max.y, min.z), Color.red);
+        Debug.DrawLine(new Vector3(min.x, min.y, max.z), new Vector3(max.x, min.y, max.z), Color.red);
+        Debug.DrawLine(new Vector3(max.x, min.y, min.z), new Vector3(max.x, max.y, min.z), Color.red);
+        Debug.DrawLine(new Vector3(min.x, min.y, max.z), new Vector3(min.x, max.y, max.z), Color.red);
+        Debug.DrawLine(new Vector3(min.x, max.y, max.z), new Vector3(min.x, max.y, min.z), Color.red);
+        Debug.DrawLine(new Vector3(max.x, min.y, min.z), new Vector3(max.x, min.y, max.z), Color.red);
+        
         if(max.x > GameManager.instance.STAGE_WIDTH*1.01 || min.x < -GameManager.instance.STAGE_WIDTH*1.01 || max.z > GameManager.instance.STAGE_WIDTH*1.01 || min.z < -GameManager.instance.STAGE_WIDTH*1.01)
         {
-            isTouchingOutside = true;
+            return true;
         }
         else
         {
-            isTouchingOutside = false;
+            return false;
         }
     }
 
+    //あとで更新優先度をいじる
+    /*
+    * もし、オブジェクトが外側に触れている場合は赤(index=1)
+    * そうでない場合、ボム(color == -1)である場合はreturn;
+    * さらにそうでない場合、isCollidedEverかつObjClearLineTouchingTimes[id] >= 0である場合は緑(index=0)
+    * 以上のどれでもないかつsplitCount == MAX_SPLIT_COUNTである場合は白(index=2)
+    * これまでのどれでもないならばそれぞれの色(index=color+1)
+    */
     protected virtual void UpdateMaterial()
     {
-        if(splitCount < GameManager.instance.MAX_SPLIT_COUNT && GameManager.instance.objManager.ControllingObj == this)
+        if(GameManager.instance.objManager.ControllingObj == this && isTouchingOutside)
         {
-            if (!isCollidedEver && isTouchingOutside)
-            {
-                if(mr.material != GameManager.instance.objManager.objMaterials[1].material) mr.material = GameManager.instance.objManager.objMaterials[1].material;
-                return;
-            }
-            else
-            {
-                if(GameManager.instance.objManager.ObjClearLineTouchingTimes.Count >= GameManager.instance.MAX_OBJECT_COUNT) return;
-                if(mr.material != GameManager.instance.objManager.objMaterials[color+1].material) mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
-            }
+            if(mr.sharedMaterial != GameManager.instance.objManager.objMaterials[1].material) mr.sharedMaterial = GameManager.instance.objManager.objMaterials[1].material;
+            return;
         }
 
-        if(color == -1) return;
-
-        if(color != 1 && splitCount == GameManager.instance.MAX_SPLIT_COUNT){
-            int typeind = (int)type;
-            if(typeind >= (int)ObjType.Animals) typeind--;
-            if(typeind >= (int)ObjType.Geometric) typeind--;
-            if(GameManager.instance.isOnlyAnimals) typeind -= (int)ObjType.Geometric;
-            GameManager.instance.objManager.objColorCounter[typeind][color]--;
-            color = 1;
+        if(color == -1){
+            if(mr.sharedMaterial != GameManager.instance.objManager.BombMaterial) mr.sharedMaterial = GameManager.instance.objManager.BombMaterial;
+            return;
         }
 
-        if(color != 1 && !isCollidedEver) return;
+        if(isCollidedEver && GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0)
+        {
+            if(mr.sharedMaterial != GameManager.instance.objManager.objMaterials[0].material) mr.sharedMaterial = GameManager.instance.objManager.objMaterials[0].material;
+            return;
+        }
 
-        if(GameManager.instance.objManager.ObjClearLineTouchingTimes[id] >= 0 && state != State.StandBy){ if(mr.material != GameManager.instance.objManager.objMaterials[0].material) mr.material = GameManager.instance.objManager.objMaterials[0].material; }
-        else if(mr.material != GameManager.instance.objManager.objMaterials[color+1].material) mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
+        if(splitCount == GameManager.instance.MAX_SPLIT_COUNT)
+        {
+            if(mr.sharedMaterial != GameManager.instance.objManager.objMaterials[2].material) mr.sharedMaterial = GameManager.instance.objManager.objMaterials[2].material;
+            return;
+        }
+
+        if(mr.sharedMaterial != GameManager.instance.objManager.objMaterials[color+1].material) mr.sharedMaterial = GameManager.instance.objManager.objMaterials[color+1].material;
     }
     
     public void Drop()
@@ -321,5 +330,34 @@ public class Obj : MonoBehaviour
         Predict();
     }
 
+    public void Move()
+    {
+        if(destination.y != -100)
+        {
+            var dif = destination-transform.position;
+            
+            var aabb = CollisionUtility.CreateAABB(col);
+            Vector3 max = aabb.max+dif;
+            Vector3 min = aabb.min+dif;
+            if(max.x > GameManager.instance.STAGE_WIDTH*1.01 || min.x < -GameManager.instance.STAGE_WIDTH*1.01)
+            {
+                destination.x = transform.position.x;
+                dif.x = 0;
+            }
+            if(max.z > GameManager.instance.STAGE_WIDTH*1.01 || min.z < -GameManager.instance.STAGE_WIDTH*1.01)
+            {
+                destination.z = transform.position.z;
+                dif.z = 0;
+            }
+
+            if(dif.sqrMagnitude < 0.025){
+                transform.position = destination;
+                //Debug.Log(transform.eulerAngles);
+                destination.y = -100;
+            }
+            else transform.position = transform.position+dif/2;
+            Predict();
+        }
+    }
 
 }

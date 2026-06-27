@@ -65,7 +65,7 @@ public enum UIType
     Other
 }
 
-public class UIManager : MonoBehaviour
+public class UIManager : MonoBehaviour,IStartGame
 {
     [SerializeField] private Dictionary<string, Image> inputButtons = new Dictionary<string, Image>();
     [SerializeField] private NecessaryUIs necessaryButtonsList = new NecessaryUIs{uiNames = new Dictionary<string, UIList>(), visibleUINames = new List<NecessaryUI>()};
@@ -222,4 +222,10 @@ public class UIManager : MonoBehaviour
         }
     }
     
+    public void StartGame()
+    {
+        Debug.Log("UIManager StartGame");
+        IStartGame evolringstdio = GameObject.Find("EvolutionRingTextureStudio").GetComponent<IStartGame>();
+        evolringstdio.StartGame();
+    }
 }

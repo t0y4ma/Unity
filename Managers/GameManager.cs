@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -7,6 +8,8 @@ using Vector2 = UnityEngine.Vector2;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager instance;
+
     #region Const variables
     [Header("CONST Variables")]
     public float STAGE_WIDTH = 47.5f;
@@ -40,13 +43,17 @@ public class GameManager : MonoBehaviour
 
     #region References
     [Header("References")]
-    public static GameManager instance;
     public ObjManager objManager;
     public InputManager inputManager;
     public SceneLoadManager sceneManager;
     public UIManager uiManager;
     public ScoreManager scoreManager;
     public Predictor predictor;
+
+    #if UNITY_EDITOR
+    [Interface(typeof(ILoadEvent))]
+    #endif
+    public List<MonoBehaviour> loadEventListeners = new List<MonoBehaviour>();
     #endregion
     
     private void Awake()
@@ -127,14 +134,24 @@ public class GameManager : MonoBehaviour
 
     public void PrepareMenu()
     {
-        inputManager.PrepareMenu();
+        foreach(var listener in loadEventListeners)
+        {
+            if(listener is IPrepareMenu prepareMenuListener)
+            {
+                prepareMenuListener.PrepareMenu();
+            }
+        }
     }
 
     public void StartGame()
     {
-        objManager.StartGame();
-        inputManager.StartGame();
-        sceneManager.StartGame();
+        foreach(var listener in loadEventListeners)
+        {
+            if(listener is IStartGame startGameListener)
+            {
+                startGameListener.StartGame();
+            }
+        }
         isCleared = false;
         movecount = 0;
         score = 0;

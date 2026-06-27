@@ -91,8 +91,8 @@ public class IntangibleObj : MonoBehaviour
             return;
         }
         if(color == -1) return;
-        Debug.Log("SetColor : "+color);
-        mr.material = GameManager.instance.objManager.objMaterials[color+1].material;
+        //Debug.Log("SetColor : "+color);
+        mr.sharedMaterial = GameManager.instance.objManager.objMaterials[color+1].material;
     }
 
     public void SetObjData(ObjData data)
